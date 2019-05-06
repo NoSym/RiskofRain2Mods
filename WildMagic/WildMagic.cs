@@ -23,7 +23,6 @@ namespace WildMagic
         private float trailTimer = -1;
         private float hauntedTimer = -1;
         private float funballTimer = -1;
-        private float ghostTimer = -1;
         private float tankDamageBuff = 0;
         private float tankMoveDebuff = 0;
         private float tankArmorBuff = 0;
@@ -139,16 +138,6 @@ namespace WildMagic
             } // if
         } // funballs
 
-        // Catch em all
-        private void goGhost()
-        {
-            if (ghostTimer == -1)
-            {
-                PlayerCharacterMasterController.instances[0].master.inventory.GiveItem(ItemIndex.Ghost, 1);
-                ghostTimer = 600; // 10 seconds
-            } // if
-        } // goGhost
-
         // Mildly inconvenient
         private void hideCrosshair()
         {
@@ -216,8 +205,7 @@ namespace WildMagic
                 hauntedTimer--;
             if (funballTimer > 0)
                 funballTimer--;
-            if (ghostTimer > 0)
-                ghostTimer--;
+            
             if (tankTimer > 0)
                 tankTimer--;
         } // timerHandler
@@ -267,11 +255,7 @@ namespace WildMagic
                 funballTimer = -1;
             } // funballTimer
 
-            if (ghostTimer == 0)
-            {
-                master.inventory.RemoveItem(ItemIndex.Ghost, 1);
-                ghostTimer = -1;
-            } // ghostTimer
+            
 
             if (moveBuffTimer == 0)
             {
@@ -297,20 +281,19 @@ namespace WildMagic
                 if (Input.GetKeyDown(KeyCode.F2))
                 {
                     CharacterMaster master = PlayerCharacterMasterController.instances[0].master;
-
-                    //tankMode();
+                    fireTrail(master);
 
                     MagicHandler testHandler = new MagicHandler(master);
 
                     testHandler.Roll();
 
                     // Testing
-                    //goGhost();
                     //buffMove();
+                    //tankMode();
                 } // if
 
-                updateTimers();
-                resolveTimers();
+                //updateTimers();
+                //resolveTimers();
             } // if
         } // Update
     } // Chaos

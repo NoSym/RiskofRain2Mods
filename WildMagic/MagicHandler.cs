@@ -15,6 +15,9 @@ namespace WildMagic
     {
         private CharacterMaster master;
 
+        // Timers
+        private float ghostTimer = -1;
+
         /// <summary>
         /// Creates a new wild magic controller for the specified character master.
         /// </summary>
@@ -22,6 +25,11 @@ namespace WildMagic
         public MagicHandler(CharacterMaster magicMaster)
         {
             master = magicMaster;
+            On.RoR2.Run.Update += (orig, self) =>
+            {
+                orig(self);
+                UpdateTimers();
+            };
         } // MagicHandler Constructor
 
         /// <summary>
@@ -29,8 +37,32 @@ namespace WildMagic
         /// </summary>
         public void Roll()
         {
-
+            DoubleMoney();
+            GoGhost();
         } // roll
+
+        private void UpdateTimers()
+        {
+            Chat.AddMessage("It's updating");
+
+            TickTimers();
+            ResolveTimers();            
+        } // Update
+
+        private void ResolveTimers()
+        {
+            if (ghostTimer == 0)
+            {
+                master.inventory.RemoveItem(ItemIndex.Ghost, 1);
+                ghostTimer = -1;
+            } // ghostTimer
+        } // Resolve Timers
+
+        private void TickTimers()
+        {
+            if (ghostTimer > 0)
+                ghostTimer--;
+        } // TickTimers
 
         // Yowch
         private void DestroyEquipment()
@@ -50,6 +82,16 @@ namespace WildMagic
         {
             NetworkServer.Spawn(UnityEngine.Object.Instantiate<GameObject>(Resources.Load<GameObject>("Prefabs/NetworkedObjects/CrippleWard"), master.GetBody().corePosition, Quaternion.identity));
         } // effigy
+
+        // Catch em all
+        private void GoGhost()
+        {
+            if (ghostTimer == -1)
+            {
+                master.inventory.GiveItem(ItemIndex.Ghost, 1);
+                ghostTimer = 600; // 10 seconds
+            } // if
+        } // goGhost
 
         // Sorry
         private void HalveMoney()
