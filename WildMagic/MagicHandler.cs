@@ -19,6 +19,7 @@ namespace WildMagic
         private enum Effects
         {
             BeginHaunt,
+            BossMode,
             BuffDamage,
             BuffMove,
             DebuffDamage,
@@ -40,6 +41,8 @@ namespace WildMagic
             Count
         };
 
+        private GameObject oldBody;
+
         // Flags
         private bool haunted = false;
         private bool messagesEnabled = false;
@@ -48,6 +51,7 @@ namespace WildMagic
         private DamageTrail[] trailArray = new DamageTrail[10];
 
         // Timers
+        private float bossTimer = -1;
         private float dmgBuff = 0;
         private float dmgBuffTimer = -1;
         private float dmgDebuff = 0;
@@ -125,6 +129,10 @@ namespace WildMagic
                 case Effects.BeginHaunt:
                     BeginHaunt();
                     message = "Souls of the slain return for vengeance.";
+                    break;
+                case Effects.BossMode:
+                    BossMode();
+                    message = "Unstable transformation!";
                     break;
                 case Effects.BuffDamage:
                     BuffDamage();
@@ -222,6 +230,12 @@ namespace WildMagic
         // Could be cleaner!
         private void ResolveTimers()
         {
+            if (bossTimer == 0)
+            {
+                master.bodyPrefab = oldBody;
+                master.Respawn(master.GetBody().footPosition, master.GetBody().transform.rotation, true);
+            } // bossTimer
+
             if (dmgBuffTimer == 0)
             {
                 master.GetBody().baseDamage -= dmgBuff;
@@ -286,6 +300,8 @@ namespace WildMagic
         // DeltaTime?
         private void TickTimers()
         {
+            if (bossTimer > 0)
+                bossTimer--;
             if (dmgBuffTimer > 0)
                 dmgBuffTimer--;
             if (dmgDebuffTimer > 0)
@@ -313,7 +329,26 @@ namespace WildMagic
         {
             haunted = true;
             hauntedTimer = 1800; // 30 seconds
-        } // evilGhost
+        } // BeginHaunt
+
+        // I am become imp
+        private void BossMode()
+        {
+            if (bossTimer == -1)
+            {
+                string[] bossPrefabs = { "ImpBossBody" };
+                string boss = bossPrefabs[UnityEngine.Random.Range(0, bossPrefabs.Length)];
+                GameObject newBody = BodyCatalog.FindBodyPrefab(boss);
+                oldBody = master.bodyPrefab;
+                master.bodyPrefab = newBody;
+                master.Respawn(master.GetBody().footPosition, master.GetBody().transform.rotation, true);
+                bossTimer = 900;// 15 seconds
+            } // if
+            else
+            {
+                bossTimer = 900;
+            } // else
+        } // BossMode
 
         // Yeehaw
         private void BuffDamage()
@@ -324,7 +359,7 @@ namespace WildMagic
                 master.GetBody().baseDamage += dmgBuff;
                 dmgBuffTimer = 900; // 15 seconds
             } // if
-        } // buffDamage
+        } // BuffDamage
 
         // Go fast
         private void BuffMove()
@@ -335,7 +370,7 @@ namespace WildMagic
                 master.GetBody().baseMoveSpeed += moveBuff;
                 moveBuffTimer = 900; // 15 seconds
             } // if
-        } // buffMove
+        } // BuffMove
 
         // 'Pardner
         private void DebuffDamage()
@@ -346,26 +381,26 @@ namespace WildMagic
                 master.GetBody().baseDamage -= dmgDebuff;
                 dmgDebuffTimer = 900; // 15 seconds
             } // if
-        } // debuffDamage
+        } // DebuffDamage
 
         // Yowch
         private void DestroyEquipment()
         {
             master.inventory.SetEquipmentIndex(EquipmentIndex.None);
-        } // destroyEquipment
+        } // DestroyEquipment
 
         // Jackpot
         private void DoubleMoney()
         {
             if (master.money < uint.MaxValue / 2)
                 master.money *= 2;
-        } // doubleMoney
+        } // DoubleMoney
 
         // Make a gnome
         private void Effigy()
         {
             NetworkServer.Spawn(UnityEngine.Object.Instantiate<GameObject>(Resources.Load<GameObject>("Prefabs/NetworkedObjects/CrippleWard"), master.GetBody().corePosition, Quaternion.identity));
-        } // effigy
+        } // Effigy
 
         // Let it burn
         private void FireTrail()
@@ -384,7 +419,7 @@ namespace WildMagic
                 } // for
                 trailTimer = 3600; // 1 minute lifespan
             } // if
-        } // fireTrail
+        } // FireTrail
 
         // Just activates the artifact
         private void Funballs()
@@ -394,7 +429,7 @@ namespace WildMagic
                 Run.instance.enabledArtifacts.AddArtifact(ArtifactIndex.Bomb);
                 funballTimer = 3600; // 1 minute
             } // if
-        } // funballs
+        } // Funballs
 
         // Catch em all
         private void GoGhost()
@@ -404,26 +439,26 @@ namespace WildMagic
                 master.inventory.GiveItem(ItemIndex.Ghost, 1);
                 ghostTimer = 600; // 10 seconds
             } // if
-        } // goGhost
+        } // GoGhost
 
         // Mildly inconvenient
         private void HideCrosshair()
         {
             master.GetBody().hideCrosshair = true;
             hideTimer = 3600; // 1 minute
-        } // hideCrosshair
+        } // HideCrosshair
 
         // Sorry
         private void HalveMoney()
         {
             master.money /= 2;
-        } // halveMoney
+        } // HalveMoney
 
         // Light em up
         private void Hellfire()
         {
             master.GetBody().AddHelfireDuration(6f);
-        } // hellfire
+        } // Hellfire
 
         // 1 meteor wave
         private void Meteors()
@@ -432,7 +467,7 @@ namespace WildMagic
             component.ownerDamage = master.GetBody().damage;
             component.isCrit = Util.CheckRoll(master.GetBody().crit, master);
             NetworkServer.Spawn(component.gameObject);
-        } // meteors
+        } // Meteors
 
         // Because why not
         private void RandomizeSurvivor()
@@ -442,7 +477,7 @@ namespace WildMagic
             GameObject newBody = BodyCatalog.FindBodyPrefab(newSurvivor);
             master.bodyPrefab = newBody;
             master.Respawn(master.GetBody().footPosition, master.GetBody().transform.rotation, true);
-        } // randomizeSurvivor
+        } // RandomizeSurvivor
 
         // Rerolls one item of each rarity in the player's possession
         private void RerollItems()
@@ -518,7 +553,7 @@ namespace WildMagic
 
             NetworkServer.Spawn(beetle);
             beetleMaster.SpawnBody(body, master.GetBody().transform.position, Quaternion.identity);
-        } // spawnBeetleGuard
+        } // SpawnBeetleGuard
 
         // Yes I'm writing a function for this
         private void TakeOneDamage()
@@ -528,7 +563,7 @@ namespace WildMagic
             damageInfo.damageType = DamageType.NonLethal;
             damageInfo.damageColorIndex = DamageColorIndex.WeakPoint;
             master.GetBody().healthComponent.TakeDamage(damageInfo);
-        } // takeOneDamage
+        } // TakeOneDamage
 
         // Possibly a terrible situation
         private void TankMode()
@@ -544,6 +579,6 @@ namespace WildMagic
                 b.baseArmor += tankArmorBuff;
                 tankTimer = 600; // 10 seconds
             } // if
-        } // tankMode
+        } // TankMode
     } // MagicHandler Class
 } // Wildmagic Namespace
