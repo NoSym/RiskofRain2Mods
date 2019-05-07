@@ -250,10 +250,10 @@ namespace WildMagic
                     rollChance = 0; // 0.5%
                     break;
                 case "medium":
-                    rollChance = 9; // 5%
+                    rollChance = 4; // 2.5%
                     break;
                 case "high":
-                    rollChance = 39; // 20%
+                    rollChance = 29; // 15%
                     break;
                 default:
                     rollChance = 0;
@@ -402,6 +402,10 @@ namespace WildMagic
                 master.GetBody().baseDamage += dmgBuff;
                 dmgBuffTimer = 900; // 15 seconds
             } // if
+            else
+            {
+                dmgBuffTimer = 900;
+            }
         } // BuffDamage
 
         // Go fast
@@ -413,6 +417,10 @@ namespace WildMagic
                 master.GetBody().baseMoveSpeed += moveBuff;
                 moveBuffTimer = 900; // 15 seconds
             } // if
+            else
+            {
+                moveBuffTimer = 900;
+            } // else
         } // BuffMove
 
         // 'Pardner
@@ -424,6 +432,10 @@ namespace WildMagic
                 master.GetBody().baseDamage -= dmgDebuff;
                 dmgDebuffTimer = 900; // 15 seconds
             } // if
+            else
+            {
+                dmgDebuffTimer = 900;
+            } // else
         } // DebuffDamage
 
         // Yowch
