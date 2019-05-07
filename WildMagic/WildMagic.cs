@@ -14,6 +14,7 @@ namespace WildMagic
         private string goofName = "";
         bool testFlag = true;
         bool messagesEnabled = false;
+        string rollChance = "medium";
 
         private MagicHandler testHandler;
        
@@ -21,6 +22,7 @@ namespace WildMagic
         public void Awake()
         {
             messagesEnabled = base.Config.Wrap<bool>("Settings", "MessagesEnabled", "If true each wild magic effect will display a chat message when it occurs.", true).Value;
+            rollChance = base.Config.Wrap<string>("Settings", "RollChance", "Roll chance for a wild magic effect (low, medium, high).", "medium").Value;
 
             // They took my naaaame Juuustin
             On.RoR2.PlayerCharacterMasterController.GetDisplayName += (orig, self) =>
@@ -64,6 +66,7 @@ namespace WildMagic
                     {
                         MagicHandler newHandler = new MagicHandler(PlayerCharacterMasterController.instances[i].master);
                         newHandler.EnableMessages(messagesEnabled);
+                        newHandler.SetChance(rollChance);
                     }
                     testFlag = false;
                 }

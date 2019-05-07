@@ -28,6 +28,7 @@ namespace WildMagic
             Effigy,
             FireTrail,
             Funballs,
+            Gamble,
             GoGhost,
             HideCrosshair,
             HalveMoney,
@@ -47,6 +48,9 @@ namespace WildMagic
 
         // Probably a bad idea
         private CharacterMaster victim;
+
+        // 0.5% per rollChance, starting at 0
+        private int rollChance = 0;
 
         // Flags
         private bool canRoll = true;
@@ -90,12 +94,11 @@ namespace WildMagic
                 {
                     if (rollTimer == 0 && canRoll)
                     {
-                        Gamble();
                         victim = report.victimMaster;
 
-                        if (UnityEngine.Random.Range(0, 200) == 0) // 0.5% chance to magic
+                        if (UnityEngine.Random.Range(0, 200) <= rollChance) // 0.5% chance to magic
                         {
-                            //Roll();
+                            Roll();
                         } // if
 
                         rollTimer = 60; // 1 second cooldown on rolling
@@ -175,6 +178,10 @@ namespace WildMagic
                     Funballs();
                     message = "Operation Fun activated.";
                     break;
+                case Effects.Gamble:
+                    Gamble();
+                    message = "The urge to gamble overcomes you.";
+                    break;
                 case Effects.GoGhost:
                     GoGhost();
                     message = "Welcome to the Astral Plane.";
@@ -234,6 +241,25 @@ namespace WildMagic
         {
             messagesEnabled = flag;
         } // EnableMessages
+
+        public void SetChance(string chance)
+        {
+            switch(chance)
+            {
+                case "low":
+                    rollChance = 0;
+                    break;
+                case "medium":
+                    rollChance = 4;
+                    break;
+                case "high":
+                    rollChance = 9;
+                    break;
+                default:
+                    rollChance = 0;
+                    break;
+            } // switch
+        } // setChance
 
         private void UpdateTimers()
         {
@@ -451,52 +477,59 @@ namespace WildMagic
         // Pretty much just a copy of gold shrine code
         private void Gamble()
         {
-            Xoroshiro128Plus rng = new Xoroshiro128Plus(Run.instance.treasureRng.nextUlong);
-            PickupIndex none = PickupIndex.none;
-            PickupIndex value = Run.instance.availableTier1DropList[rng.RangeInt(0, Run.instance.availableTier1DropList.Count - 1)];
-            PickupIndex value2 = Run.instance.availableTier2DropList[rng.RangeInt(0, Run.instance.availableTier2DropList.Count - 1)];
-            PickupIndex value3 = Run.instance.availableTier3DropList[rng.RangeInt(0, Run.instance.availableTier3DropList.Count - 1)];
-            PickupIndex value4 = Run.instance.availableEquipmentDropList[rng.RangeInt(0, Run.instance.availableEquipmentDropList.Count - 1)];
-            WeightedSelection<PickupIndex> weightedSelection = new WeightedSelection<PickupIndex>(8);
-            weightedSelection.AddChoice(none, 50.0f); // Definitely just made all these weights up
-            weightedSelection.AddChoice(value, 25.0f);
-            weightedSelection.AddChoice(value2, 14.0f);
-            weightedSelection.AddChoice(value3, 1.0f);
-            weightedSelection.AddChoice(value4, 10.0f);
-            PickupIndex pickupIndex = weightedSelection.Evaluate(rng.nextNormalizedFloat);
-            bool flag = pickupIndex == PickupIndex.none;
-            if (flag)
+            int cost = Run.instance.GetDifficultyScaledCost(17);
+            while (master.money >= cost)
             {
-                Chat.SendBroadcastChat(new Chat.SubjectFormatChatMessage
+                Xoroshiro128Plus rng = new Xoroshiro128Plus(Run.instance.treasureRng.nextUlong);
+                PickupIndex none = PickupIndex.none;
+                PickupIndex value = Run.instance.availableTier1DropList[rng.RangeInt(0, Run.instance.availableTier1DropList.Count - 1)];
+                PickupIndex value2 = Run.instance.availableTier2DropList[rng.RangeInt(0, Run.instance.availableTier2DropList.Count - 1)];
+                PickupIndex value3 = Run.instance.availableTier3DropList[rng.RangeInt(0, Run.instance.availableTier3DropList.Count - 1)];
+                PickupIndex value4 = Run.instance.availableEquipmentDropList[rng.RangeInt(0, Run.instance.availableEquipmentDropList.Count - 1)];
+                WeightedSelection<PickupIndex> weightedSelection = new WeightedSelection<PickupIndex>(8);
+                weightedSelection.AddChoice(none, 50.0f); // Definitely just made all these weights up
+                weightedSelection.AddChoice(value, 25.0f);
+                weightedSelection.AddChoice(value2, 14.0f);
+                weightedSelection.AddChoice(value3, 1.0f);
+                weightedSelection.AddChoice(value4, 10.0f);
+                PickupIndex pickupIndex = weightedSelection.Evaluate(rng.nextNormalizedFloat);
+                bool flag = pickupIndex == PickupIndex.none;
+                if (flag)
                 {
-                    subjectCharacterBodyGameObject = master.GetBody().gameObject,
-                    baseToken = "SHRINE_CHANCE_FAIL_MESSAGE"
-                });
-            }
-            else
-            {
-                PickupDropletController.CreatePickupDroplet(pickupIndex, master.GetBody().transform.position, master.GetBody().transform.forward * 20f);
-                Chat.SendBroadcastChat(new Chat.SubjectFormatChatMessage
+                    Chat.SendBroadcastChat(new Chat.SubjectFormatChatMessage
+                    {
+                        subjectCharacterBodyGameObject = master.GetBody().gameObject,
+                        baseToken = "SHRINE_CHANCE_FAIL_MESSAGE"
+                    });
+                }
+                else
                 {
-                    subjectCharacterBodyGameObject = master.GetBody().gameObject,
-                    baseToken = "SHRINE_CHANCE_SUCCESS_MESSAGE"
-                });
-            }
-            /*
-            Action<bool, Interactor> action = ShrineChanceBehavior.onShrineChancePurchaseGlobal;
-            if (action != null)
-            {
-                action(flag, activator);
-            }
-            */
+                    PickupDropletController.CreatePickupDroplet(pickupIndex, master.GetBody().transform.position, master.GetBody().transform.forward * 20f);
+                    Chat.SendBroadcastChat(new Chat.SubjectFormatChatMessage
+                    {
+                        subjectCharacterBodyGameObject = master.GetBody().gameObject,
+                        baseToken = "SHRINE_CHANCE_SUCCESS_MESSAGE"
+                    });
+                }
+                /*
+                Action<bool, Interactor> action = ShrineChanceBehavior.onShrineChancePurchaseGlobal;
+                if (action != null)
+                {
+                    action(flag, activator);
+                }
+                */
 
-            EffectManager.instance.SpawnEffect(Resources.Load<GameObject>("Prefabs/Effects/ShrineUseEffect"), new EffectData
-            {
-                origin = master.GetBody().transform.position,
-                rotation = Quaternion.identity,
-                scale = 1f,
-                color = Color.yellow
-            }, true);
+                EffectManager.instance.SpawnEffect(Resources.Load<GameObject>("Prefabs/Effects/ShrineUseEffect"), new EffectData
+                {
+                    origin = master.GetBody().transform.position,
+                    rotation = Quaternion.identity,
+                    scale = 1f,
+                    color = Color.yellow
+                }, true);
+
+                master.money -= (uint)cost;
+                cost = (int)(cost * 1.5);
+            } // while
         } // Gamble
 
         // Catch em all
