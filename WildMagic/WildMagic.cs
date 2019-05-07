@@ -18,15 +18,6 @@ namespace WildMagic
         // Woke
         public void Awake()
         {
-            // Not important Really
-            On.RoR2.CharacterBody.OnDamageDealt += (orig, self, report) =>
-            {
-                if (self.Equals(PlayerCharacterMasterController.instances[0].master.GetBody()))
-                    ;// instakill(report.victimMaster);// polymorph(report.victimMaster);
-
-                orig(self, report);
-            };
-
             // They took my naaaame Juuustin
             On.RoR2.PlayerCharacterMasterController.GetDisplayName += (orig, self) =>
             {

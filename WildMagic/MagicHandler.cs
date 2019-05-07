@@ -16,8 +16,33 @@ namespace WildMagic
     {
         private CharacterMaster master;
 
+        private enum Effects
+        {
+            BeginHaunt,
+            BuffDamage,
+            BuffMove,
+            DebuffDamage,
+            DestroyEquipment,
+            DoubleMoney,
+            Effigy,
+            FireTrail,
+            Funballs,
+            GoGhost,
+            HideCrosshair,
+            HalveMoney,
+            Hellfire,
+            Meteors,
+            RandomizeSurvivor,
+            RerollItems,
+            SpawnBeetleGuard,
+            TakeOneDamage,
+            TankMode,
+            Count
+        };
+
         // Flags
         private bool haunted = false;
+        private bool messagesEnabled = false;
 
         // Arrays
         private DamageTrail[] trailArray = new DamageTrail[10];
@@ -28,12 +53,13 @@ namespace WildMagic
         private float dmgDebuff = 0;
         private float dmgDebuffTimer = -1;
         private float ghostTimer = -1;
+        private float hauntedTimer = -1;
         private float moveBuff = 0;
         private float moveBuffTimer = -1;
         private float hideTimer = -1;
         private float trailTimer = -1;
-        private float hauntedTimer = -1;
         private float funballTimer = -1;
+        private float rollTimer = 0;
         private float tankDamageBuff = 0;
         private float tankMoveDebuff = 0;
         private float tankArmorBuff = 0;
@@ -46,6 +72,25 @@ namespace WildMagic
         public MagicHandler(CharacterMaster magicMaster)
         {
             master = magicMaster;
+
+            // Not important Really
+            On.RoR2.CharacterBody.OnDamageDealt += (orig, self, report) =>
+            {
+                if (self.Equals(master.GetBody()))
+                {
+                    if (rollTimer == -1)
+                    {
+                        if(UnityEngine.Random.Range(0, 200) == 0) // 0.5% chance to magic
+                        {
+                            Roll();
+                        } // if
+
+                        rollTimer = 60; // 1 second cooldown on rolling
+                    } // if
+                } // if
+
+                orig(self, report);
+            };
 
             // For the timers
             On.RoR2.Run.Update += (orig, self) =>
@@ -73,8 +118,90 @@ namespace WildMagic
         /// </summary>
         public void Roll()
         {
-            RerollItems();
-            DoubleMoney();
+            string message = "";
+
+            switch((Effects)UnityEngine.Random.Range(0, (int)Effects.Count))
+            {
+                case Effects.BeginHaunt:
+                    BeginHaunt();
+                    message = "Souls of the slain return for vengeance.";
+                    break;
+                case Effects.BuffDamage:
+                    BuffDamage();
+                    message = "You feel powerful!";
+                    break;
+                case Effects.BuffMove:
+                    BuffMove();
+                    message = "You've got the wind at your back.";
+                    break;
+                case Effects.DebuffDamage:
+                    DebuffDamage();
+                    message = "Your strikes soften.";
+                    break;
+                case Effects.DestroyEquipment:
+                    DestroyEquipment();
+                    message = "Something in your possession has broken.";
+                    break;
+                case Effects.DoubleMoney:
+                    DoubleMoney();
+                    message = "Great wealth finds you.";
+                    break;
+                case Effects.Effigy:
+                    Effigy();
+                    message = "A 'friend' arrives to help!";
+                    break;
+                case Effects.FireTrail:
+                    FireTrail();
+                    message = "Time for trailblazing.";
+                    break;
+                case Effects.Funballs:
+                    Funballs();
+                    message = "Operation Fun activated.";
+                    break;
+                case Effects.GoGhost:
+                    GoGhost();
+                    message = "Welcome to the Astral Plane.";
+                    break;
+                case Effects.HideCrosshair:
+                    HideCrosshair();
+                    message = "Have you got something in your eye?";
+                    break;
+                case Effects.HalveMoney:
+                    HalveMoney();
+                    message = "Your wallet feels lighter.";
+                    break;
+                case Effects.Hellfire:
+                    Hellfire();
+                    message = "HOT!";
+                    break;
+                case Effects.Meteors:
+                    Meteors();
+                    message = "The sky is falling.";
+                    break;
+                case Effects.RandomizeSurvivor:
+                    RandomizeSurvivor();
+                    message = "Who are you?";
+                    break;
+                case Effects.RerollItems:
+                    RerollItems();
+                    message = "Did you always have those?";
+                    break;
+                case Effects.SpawnBeetleGuard:
+                    SpawnBeetleGuard();
+                    message = "Hello little bug.";
+                    break;
+                case Effects.TakeOneDamage:
+                    TakeOneDamage();
+                    message = "You feel a slight pinch.";
+                    break;
+                case Effects.TankMode:
+                    TankMode();
+                    message = "Survive.";
+                    break;
+            } // switch
+
+            if (messagesEnabled)
+                Chat.AddMessage(message);
         } // roll
 
         private void UpdateTimers()
@@ -104,27 +231,17 @@ namespace WildMagic
                 ghostTimer = -1;
             } // ghostTimer
 
-            if (hideTimer == 0)
-            {
-                master.GetBody().hideCrosshair = false;
-                hideTimer = -1;
-            } // hideTimer
-
-            if (trailTimer == 0)
-            {
-                for (int i = 0; i < trailArray.Length; i++)
-                {
-                    UnityEngine.Object.Destroy(trailArray[i].gameObject);
-                    trailArray[i] = null;
-                } // for
-                trailTimer = -1;
-            } // trailTimer
-
             if (hauntedTimer == 0)
             {
                 haunted = false;
                 hauntedTimer = -1;
             } // hauntedTimer
+
+            if (hideTimer == 0)
+            {
+                master.GetBody().hideCrosshair = false;
+                hideTimer = -1;
+            } // hideTimer
 
             if (funballTimer == 0)
             {
@@ -145,7 +262,16 @@ namespace WildMagic
                 master.GetBody().baseArmor -= tankArmorBuff;
                 tankTimer = -1;
             } // tankTimer
-            
+
+            if (trailTimer == 0)
+            {
+                for (int i = 0; i < trailArray.Length; i++)
+                {
+                    UnityEngine.Object.Destroy(trailArray[i].gameObject);
+                    trailArray[i] = null;
+                } // for
+                trailTimer = -1;
+            } // trailTimer
         } // Resolve Timers
 
         // DeltaTime?
@@ -157,18 +283,20 @@ namespace WildMagic
                 dmgDebuffTimer--;
             if (moveBuffTimer > 0)
                 moveBuffTimer--;
+            if (funballTimer > 0)
+                funballTimer--;
             if (ghostTimer > 0)
                 ghostTimer--;
             if (hideTimer > 0)
                 hideTimer--;
-            if (trailTimer > 0)
-                trailTimer--;
             if (hauntedTimer > 0)
                 hauntedTimer--;
-            if (funballTimer > 0)
-                funballTimer--;
+            if (rollTimer > 0)
+                rollTimer--;
             if (tankTimer > 0)
                 tankTimer--;
+            if (trailTimer > 0)
+                trailTimer--;
         } // TickTimers
 
         // Spooky
