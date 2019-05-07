@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using BepInEx;
 using RoR2;
 using RoR2.CharacterAI;
@@ -72,14 +73,12 @@ namespace WildMagic
         /// </summary>
         public void Roll()
         {
+            RerollItems();
             DoubleMoney();
-            GoGhost();
         } // roll
 
         private void UpdateTimers()
         {
-            Chat.AddMessage("It's updating");
-
             TickTimers();
             ResolveTimers();            
         } // Update
@@ -307,6 +306,66 @@ namespace WildMagic
             master.bodyPrefab = newBody;
             master.Respawn(master.GetBody().footPosition, master.GetBody().transform.rotation, true);
         } // randomizeSurvivor
+
+        // Rerolls one item of each rarity in the player's possession
+        private void RerollItems()
+        {
+            List<ItemIndex> whiteItems = new List<ItemIndex>();
+            List<ItemIndex> greenItems = new List<ItemIndex>();
+            List<ItemIndex> redItems = new List<ItemIndex>();
+            List<ItemIndex> blueItems = new List<ItemIndex>();
+
+            // Determine inventory
+            for (int i = 0; i < (int)ItemIndex.Count; i++)
+            {
+                if (master.inventory.GetItemCount((ItemIndex)i) > 0)
+                {
+                    switch (ItemCatalog.GetItemDef((ItemIndex)i).tier)
+                    {
+                        case ItemTier.Tier1:
+                            whiteItems.Add((ItemIndex)i);
+                            break;
+
+                        case ItemTier.Tier2:
+                            greenItems.Add((ItemIndex)i);
+                            break;
+
+                        case ItemTier.Tier3:
+                            redItems.Add((ItemIndex)i);
+                            break;
+
+                        case ItemTier.Lunar:
+                            blueItems.Add((ItemIndex)i);
+                            break;
+                    } // switch
+                } // if
+            } // for
+
+            // Reroll
+            if (whiteItems.Count > 0)
+            {
+                master.inventory.RemoveItem(whiteItems[UnityEngine.Random.Range(0, whiteItems.Count)], 1);
+                master.inventory.GiveItem(ItemCatalog.tier1ItemList[UnityEngine.Random.Range(0, ItemCatalog.tier1ItemList.Count)], 1);
+            } // if
+
+            if (greenItems.Count > 0)
+            {
+                master.inventory.RemoveItem(greenItems[UnityEngine.Random.Range(0, greenItems.Count)], 1);
+                master.inventory.GiveItem(ItemCatalog.tier2ItemList[UnityEngine.Random.Range(0, ItemCatalog.tier2ItemList.Count)], 1);
+            } // if
+
+            if (redItems.Count > 0)
+            {
+                master.inventory.RemoveItem(redItems[UnityEngine.Random.Range(0, redItems.Count)], 1);
+                master.inventory.GiveItem(ItemCatalog.tier3ItemList[UnityEngine.Random.Range(0, ItemCatalog.tier3ItemList.Count)], 1);
+            } // if
+
+            if (blueItems.Count > 0)
+            {
+                master.inventory.RemoveItem(blueItems[UnityEngine.Random.Range(0, blueItems.Count)], 1);
+                master.inventory.GiveItem(ItemCatalog.lunarItemList[UnityEngine.Random.Range(0, ItemCatalog.lunarItemList.Count)], 1);
+            } // if
+        } // ReRollItem
 
         // A Friend
         private void SpawnBeetleGuard()

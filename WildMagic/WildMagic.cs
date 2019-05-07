@@ -12,6 +12,8 @@ namespace WildMagic
     public class WildMagic : BaseUnityPlugin
     { 
         private string goofName = "";
+
+        private MagicHandler testHandler;
        
         // Woke
         public void Awake()
@@ -33,7 +35,6 @@ namespace WildMagic
                 else
                     return orig(self);
             };
-
         } // Awake
 
         // Boom
@@ -71,9 +72,12 @@ namespace WildMagic
                 // Debugging Key
                 if (Input.GetKeyDown(KeyCode.F2))
                 {
-                    CharacterMaster master = PlayerCharacterMasterController.instances[0].master;
+                    if (testHandler == null)
+                    {
+                        CharacterMaster master = PlayerCharacterMasterController.instances[0].master;
 
-                    MagicHandler testHandler = new MagicHandler(master);
+                        testHandler = new MagicHandler(master);
+                    } // if
 
                     testHandler.Roll();
                 } // if
