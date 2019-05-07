@@ -247,13 +247,13 @@ namespace WildMagic
             switch(chance)
             {
                 case "low":
-                    rollChance = 0;
+                    rollChance = 0; // 0.5%
                     break;
                 case "medium":
-                    rollChance = 4;
+                    rollChance = 9; // 5%
                     break;
                 case "high":
-                    rollChance = 9;
+                    rollChance = 39; // 20%
                     break;
                 default:
                     rollChance = 0;
