@@ -13,12 +13,15 @@ namespace WildMagic
     { 
         private string goofName = "";
         bool testFlag = true;
+        bool messagesEnabled = false;
 
         private MagicHandler testHandler;
        
         // Woke
         public void Awake()
         {
+            messagesEnabled = base.Config.Wrap<bool>("Settings", "MessagesEnabled", "If true each wild magic effect will display a chat message when it occurs.", true).Value;
+
             // They took my naaaame Juuustin
             On.RoR2.PlayerCharacterMasterController.GetDisplayName += (orig, self) =>
             {
@@ -66,20 +69,13 @@ namespace WildMagic
                     for (int i = 0; i < PlayerCharacterMasterController.instances.Count; i++)
                     {
                         MagicHandler newHandler = new MagicHandler(PlayerCharacterMasterController.instances[i].master);
+                        newHandler.EnableMessages(messagesEnabled);
                     }
                     testFlag = false;
                 }
                 // Debugging Key
                 if (Input.GetKeyDown(KeyCode.F2))
                 {
-                    if (testHandler == null)
-                    {
-                        CharacterMaster master = PlayerCharacterMasterController.instances[0].master;
-
-                        testHandler = new MagicHandler(master);
-                    } // if
-
-                    testHandler.Roll();
                 } // if
             } // if
         } // Update

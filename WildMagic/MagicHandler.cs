@@ -78,7 +78,7 @@ namespace WildMagic
             {
                 if (self.Equals(master.GetBody()))
                 {
-                    if (rollTimer == -1)
+                    if (rollTimer == 0)
                     {
                         if(UnityEngine.Random.Range(0, 200) == 0) // 0.5% chance to magic
                         {
@@ -203,6 +203,15 @@ namespace WildMagic
             if (messagesEnabled)
                 Chat.AddMessage(message);
         } // roll
+
+        /// <summary>
+        /// Whether or not to display effect flavor text in chat.
+        /// </summary>
+        /// <param name="flag">Yea or nay</param>
+        public void EnableMessages(bool flag)
+        {
+            messagesEnabled = flag;
+        } // EnableMessages
 
         private void UpdateTimers()
         {
@@ -504,7 +513,7 @@ namespace WildMagic
             GameObject beetle = UnityEngine.Object.Instantiate<GameObject>(prefab, master.GetBody().transform.position, Quaternion.identity);
             beetle.AddComponent<MasterSuicideOnTimer>().lifeTimer = 300f; // Summons the boy for 5 minutes
             CharacterMaster beetleMaster = beetle.GetComponent<CharacterMaster>();
-            beetle.GetComponent<BaseAI>().leader.gameObject = beetleMaster.GetBody().gameObject;
+            beetle.GetComponent<BaseAI>().leader.gameObject = master.GetBody().gameObject;
             beetleMaster.teamIndex = TeamIndex.Player;
 
             NetworkServer.Spawn(beetle);
