@@ -49,7 +49,7 @@ namespace WildMagic
         // Probably a bad idea
         private CharacterMaster victim;
 
-        // 0.5% per rollChance, starting at 0
+        // proc chance = rollChance * 0.5 + 1
         private int rollChance = 0;
 
         // Flags
@@ -242,6 +242,10 @@ namespace WildMagic
             messagesEnabled = flag;
         } // EnableMessages
 
+        /// <summary>
+        /// Effect proc chance
+        /// </summary>
+        /// <param name="chance">Possible values: 'low', 'medium', 'high'</param>
         public void SetChance(string chance)
         {
             switch(chance)
@@ -415,6 +419,7 @@ namespace WildMagic
             {
                 moveBuff = master.GetBody().baseMoveSpeed;
                 master.GetBody().baseMoveSpeed += moveBuff;
+                master.GetBody().RecalculateStats();
                 moveBuffTimer = 900; // 15 seconds
             } // if
             else
@@ -474,6 +479,10 @@ namespace WildMagic
                 } // for
                 trailTimer = 3600; // 1 minute lifespan
             } // if
+            else
+            {
+                trailTimer = 3600;
+            } // else
         } // FireTrail
 
         // Just activates the artifact
@@ -552,6 +561,10 @@ namespace WildMagic
                 master.inventory.GiveItem(ItemIndex.Ghost, 1);
                 ghostTimer = 600; // 10 seconds
             } // if
+            else
+            {
+                ghostTimer = 600;
+            } // else
         } // GoGhost
 
         // Mildly inconvenient
@@ -699,6 +712,10 @@ namespace WildMagic
                 b.baseArmor += tankArmorBuff;
                 tankTimer = 600; // 10 seconds
             } // if
+            else
+            {
+                tankTimer = 600;
+            } // else
         } // TankMode
     } // MagicHandler Class
 } // Wildmagic Namespace
