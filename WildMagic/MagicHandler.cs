@@ -32,6 +32,7 @@ namespace WildMagic
             HideCrosshair,
             HalveMoney,
             Hellfire,
+            Instakill,
             Meteors,
             RandomizeSurvivor,
             RerollItems,
@@ -41,9 +42,14 @@ namespace WildMagic
             Count
         };
 
+        // For temporary transformations
         private GameObject oldBody;
 
+        // Probably a bad idea
+        private CharacterMaster victim;
+
         // Flags
+        private bool canRoll = true;
         private bool haunted = false;
         private bool messagesEnabled = false;
 
@@ -77,16 +83,19 @@ namespace WildMagic
         {
             master = magicMaster;
 
-            // Not important Really
+            // Magic Proc
             On.RoR2.CharacterBody.OnDamageDealt += (orig, self, report) =>
             {
-                if (self.Equals(master.GetBody()))
+                if (self.Equals(master.GetBody()) && !report.victimMaster.Equals(master))
                 {
-                    if (rollTimer == 0)
+                    if (rollTimer == 0 && canRoll)
                     {
-                        if(UnityEngine.Random.Range(0, 200) == 0) // 0.5% chance to magic
+                        Gamble();
+                        victim = report.victimMaster;
+
+                        if (UnityEngine.Random.Range(0, 200) == 0) // 0.5% chance to magic
                         {
-                            Roll();
+                            //Roll();
                         } // if
 
                         rollTimer = 60; // 1 second cooldown on rolling
@@ -182,6 +191,10 @@ namespace WildMagic
                     Hellfire();
                     message = "HOT!";
                     break;
+                case Effects.Instakill:
+                    Instakill();
+                    message = "Death blow!";
+                    break;
                 case Effects.Meteors:
                     Meteors();
                     message = "The sky is falling.";
@@ -195,6 +208,7 @@ namespace WildMagic
                     message = "Did you always have those?";
                     break;
                 case Effects.SpawnBeetleGuard:
+                    SpawnBeetleGuard();
                     SpawnBeetleGuard();
                     message = "Hello little bug.";
                     break;
@@ -234,6 +248,8 @@ namespace WildMagic
             {
                 master.bodyPrefab = oldBody;
                 master.Respawn(master.GetBody().footPosition, master.GetBody().transform.rotation, true);
+                canRoll = true;
+                bossTimer = -1;
             } // bossTimer
 
             if (dmgBuffTimer == 0)
@@ -336,17 +352,18 @@ namespace WildMagic
         {
             if (bossTimer == -1)
             {
-                string[] bossPrefabs = { "ImpBossBody" };
+                string[] bossPrefabs = { "ImpBossBody", "TitanBody", "ClayBossBody" };
                 string boss = bossPrefabs[UnityEngine.Random.Range(0, bossPrefabs.Length)];
                 GameObject newBody = BodyCatalog.FindBodyPrefab(boss);
                 oldBody = master.bodyPrefab;
                 master.bodyPrefab = newBody;
                 master.Respawn(master.GetBody().footPosition, master.GetBody().transform.rotation, true);
-                bossTimer = 900;// 15 seconds
+                canRoll = false; // Things could get weird if we use magic while Imp'd
+                bossTimer = 1800;// 30 seconds
             } // if
             else
             {
-                bossTimer = 900;
+                bossTimer = 1800; // Should never happen but just in case
             } // else
         } // BossMode
 
@@ -431,6 +448,57 @@ namespace WildMagic
             } // if
         } // Funballs
 
+        // Pretty much just a copy of gold shrine code
+        private void Gamble()
+        {
+            Xoroshiro128Plus rng = new Xoroshiro128Plus(Run.instance.treasureRng.nextUlong);
+            PickupIndex none = PickupIndex.none;
+            PickupIndex value = Run.instance.availableTier1DropList[rng.RangeInt(0, Run.instance.availableTier1DropList.Count - 1)];
+            PickupIndex value2 = Run.instance.availableTier2DropList[rng.RangeInt(0, Run.instance.availableTier2DropList.Count - 1)];
+            PickupIndex value3 = Run.instance.availableTier3DropList[rng.RangeInt(0, Run.instance.availableTier3DropList.Count - 1)];
+            PickupIndex value4 = Run.instance.availableEquipmentDropList[rng.RangeInt(0, Run.instance.availableEquipmentDropList.Count - 1)];
+            WeightedSelection<PickupIndex> weightedSelection = new WeightedSelection<PickupIndex>(8);
+            weightedSelection.AddChoice(none, 50.0f); // Definitely just made all these weights up
+            weightedSelection.AddChoice(value, 25.0f);
+            weightedSelection.AddChoice(value2, 14.0f);
+            weightedSelection.AddChoice(value3, 1.0f);
+            weightedSelection.AddChoice(value4, 10.0f);
+            PickupIndex pickupIndex = weightedSelection.Evaluate(rng.nextNormalizedFloat);
+            bool flag = pickupIndex == PickupIndex.none;
+            if (flag)
+            {
+                Chat.SendBroadcastChat(new Chat.SubjectFormatChatMessage
+                {
+                    subjectCharacterBodyGameObject = master.GetBody().gameObject,
+                    baseToken = "SHRINE_CHANCE_FAIL_MESSAGE"
+                });
+            }
+            else
+            {
+                PickupDropletController.CreatePickupDroplet(pickupIndex, master.GetBody().transform.position, master.GetBody().transform.forward * 20f);
+                Chat.SendBroadcastChat(new Chat.SubjectFormatChatMessage
+                {
+                    subjectCharacterBodyGameObject = master.GetBody().gameObject,
+                    baseToken = "SHRINE_CHANCE_SUCCESS_MESSAGE"
+                });
+            }
+            /*
+            Action<bool, Interactor> action = ShrineChanceBehavior.onShrineChancePurchaseGlobal;
+            if (action != null)
+            {
+                action(flag, activator);
+            }
+            */
+
+            EffectManager.instance.SpawnEffect(Resources.Load<GameObject>("Prefabs/Effects/ShrineUseEffect"), new EffectData
+            {
+                origin = master.GetBody().transform.position,
+                rotation = Quaternion.identity,
+                scale = 1f,
+                color = Color.yellow
+            }, true);
+        } // Gamble
+
         // Catch em all
         private void GoGhost()
         {
@@ -459,6 +527,13 @@ namespace WildMagic
         {
             master.GetBody().AddHelfireDuration(6f);
         } // Hellfire
+
+        // Instant death
+        private void Instakill()
+        {
+            if(victim != null)
+                victim.GetBody().healthComponent.Suicide();
+        } // Instakill
 
         // 1 meteor wave
         private void Meteors()
@@ -546,7 +621,7 @@ namespace WildMagic
             GameObject body = BodyCatalog.FindBodyPrefab("BeetleGuardAlly" + "Body");
 
             GameObject beetle = UnityEngine.Object.Instantiate<GameObject>(prefab, master.GetBody().transform.position, Quaternion.identity);
-            beetle.AddComponent<MasterSuicideOnTimer>().lifeTimer = 300f; // Summons the boy for 5 minutes
+            beetle.AddComponent<MasterSuicideOnTimer>().lifeTimer = 120f; // Summons the boy for 2 minutes
             CharacterMaster beetleMaster = beetle.GetComponent<CharacterMaster>();
             beetle.GetComponent<BaseAI>().leader.gameObject = master.GetBody().gameObject;
             beetleMaster.teamIndex = TeamIndex.Player;

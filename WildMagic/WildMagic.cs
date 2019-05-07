@@ -32,12 +32,6 @@ namespace WildMagic
             };
         } // Awake
 
-        // Boom
-        private void instakill(CharacterMaster victim)
-        {
-            victim.GetBody().healthComponent.Suicide();
-        } // instakill
-
         // Note that this keeps the original ai, which is kinda funny since it's literally the previous enemy's brain in a new body
         // THIS DOES NOT WORK RIGHT NOW
         private void polymorph(CharacterMaster master)
