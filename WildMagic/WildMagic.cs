@@ -12,6 +12,7 @@ namespace WildMagic
     public class WildMagic : BaseUnityPlugin
     { 
         private string goofName = "";
+        bool testFlag = true;
 
         private MagicHandler testHandler;
        
@@ -60,6 +61,14 @@ namespace WildMagic
             // Run actually started
             if (Run.instance.fixedTime > 0)
             {
+                if(testFlag)
+                {
+                    for (int i = 0; i < PlayerCharacterMasterController.instances.Count; i++)
+                    {
+                        MagicHandler newHandler = new MagicHandler(PlayerCharacterMasterController.instances[i].master);
+                    }
+                    testFlag = false;
+                }
                 // Debugging Key
                 if (Input.GetKeyDown(KeyCode.F2))
                 {
