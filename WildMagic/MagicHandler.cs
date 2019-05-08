@@ -265,7 +265,12 @@ namespace WildMagic
             } // switch
 
             if (messagesEnabled)
-                Chat.AddMessage("<color=#1E90FF>" + message + "</color>");
+            {
+                Chat.SendBroadcastChat(new Chat.SimpleChatMessage
+                {
+                    baseToken = "<color=#1E90FF>" + master.GetComponent<PlayerCharacterMasterController>().GetDisplayName() + " triggered wild magic!\n" + message + "</color>"
+                });
+            } // if
         } // roll
 
         /// <summary>
@@ -624,7 +629,7 @@ namespace WildMagic
                     wildFire.damagePerSecond *= master.GetBody().damage * 1.5f;
                     trailArray[i] = wildFire;
                 } // for
-                trailTimer = 3600; // 1 minute lifespan
+                trailTimer = 1800; // 30 seconds
             } // if
             else
             {
@@ -825,19 +830,6 @@ namespace WildMagic
         // A Friend
         private void SpawnBeetleGuard()
         {
-            /*
-            GameObject prefab = MasterCatalog.FindMasterPrefab("BeetleGuardAlly" + "Master");
-            GameObject body = BodyCatalog.FindBodyPrefab("BeetleGuardAlly" + "Body");
-
-            GameObject beetle = UnityEngine.Object.Instantiate<GameObject>(prefab, master.GetBody().transform.position, Quaternion.identity);
-            beetle.AddComponent<MasterSuicideOnTimer>().lifeTimer = 120f; // Summons the boy for 2 minutes
-            CharacterMaster beetleMaster = beetle.GetComponent<CharacterMaster>();
-            beetle.GetComponent<BaseAI>().leader.gameObject = master.GetBody().gameObject;
-            beetleMaster.teamIndex = TeamIndex.Player;
-
-            NetworkServer.Spawn(beetle);
-            beetleMaster.SpawnBody(body, master.GetBody().transform.position, Quaternion.identity);
-            */
             GameObject gameObject = DirectorCore.instance.TrySpawnObject((SpawnCard)Resources.Load("SpawnCards/CharacterSpawnCards/cscBeetleGuardAlly"), new DirectorPlacementRule
             {
                 placementMode = DirectorPlacementRule.PlacementMode.Approximate,
@@ -856,12 +848,6 @@ namespace WildMagic
                     component.teamIndex = TeamIndex.Player;
                     component.inventory.GiveItem(ItemIndex.BoostDamage, 30);
                     component.inventory.GiveItem(ItemIndex.BoostHp, 10);
-                    GameObject bodyObject = component.GetBodyObject();
-                    if (bodyObject)
-                    {
-                        Deployable component4 = bodyObject.GetComponent<Deployable>();
-                        master.AddDeployable(component4, DeployableSlot.BeetleGuardAlly);
-                    }
                 }
                 if (component2)
                 {
