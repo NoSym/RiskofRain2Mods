@@ -26,6 +26,7 @@ namespace WildMagic
             DestroyEquipment,
             DoubleMoney,
             Effigy,
+            EnemyMerc,
             FireTrail,
             Funballs,
             Gamble,
@@ -37,6 +38,7 @@ namespace WildMagic
             Meteors,
             RandomizeSurvivor,
             RerollItems,
+            RuinName,
             SpawnBeetleGuard,
             TakeOneDamage,
             TankMode,
@@ -51,6 +53,9 @@ namespace WildMagic
 
         // proc chance = rollChance * 0.5 + 1
         private int rollChance = 0;
+
+        // Ha
+        private string goofName = "";
 
         // Flags
         private bool canRoll = true;
@@ -127,6 +132,15 @@ namespace WildMagic
 
                 orig(self, report);
             };
+
+            // They took my naaaame Juuustin
+            On.RoR2.PlayerCharacterMasterController.GetDisplayName += (orig, self) =>
+            {
+                if (self.Equals(master.GetComponent<PlayerCharacterMasterController>()) && goofName != "")
+                    return goofName;
+                else
+                    return orig(self);
+            };
         } // MagicHandler Constructor
 
         /// <summary>
@@ -169,6 +183,10 @@ namespace WildMagic
                 case Effects.Effigy:
                     Effigy();
                     message = "A 'friend' arrives to help!";
+                    break;
+                case Effects.EnemyMerc:
+                    EnemyMerc();
+                    message = "He's found you!";
                     break;
                 case Effects.FireTrail:
                     FireTrail();
@@ -213,6 +231,10 @@ namespace WildMagic
                 case Effects.RerollItems:
                     RerollItems();
                     message = "Did you always have those?";
+                    break;
+                case Effects.RuinName:
+                    RuinName();
+                    message = "Having an identity crisis?";
                     break;
                 case Effects.SpawnBeetleGuard:
                     SpawnBeetleGuard();
@@ -321,6 +343,7 @@ namespace WildMagic
             if (moveBuffTimer == 0)
             {
                 master.GetBody().baseMoveSpeed -= moveBuff;
+                master.GetBody().RecalculateStats();
                 moveBuffTimer = -1;
             } // moveBuffTimer
 
@@ -329,6 +352,7 @@ namespace WildMagic
                 master.GetBody().baseDamage -= tankDamageBuff;
                 master.GetBody().baseMoveSpeed += tankMoveDebuff;
                 master.GetBody().baseArmor -= tankArmorBuff;
+                master.GetBody().RecalculateStats();
                 tankTimer = -1;
             } // tankTimer
 
@@ -462,6 +486,29 @@ namespace WildMagic
             NetworkServer.Spawn(UnityEngine.Object.Instantiate<GameObject>(Resources.Load<GameObject>("Prefabs/NetworkedObjects/CrippleWard"), master.GetBody().corePosition, Quaternion.identity));
         } // Effigy
 
+        // They ARE mercenaries
+        private void EnemyMerc()
+        {
+            GameObject prefab = MasterCatalog.FindMasterPrefab("MercMonster" + "Master");
+            GameObject body = BodyCatalog.FindBodyPrefab("Merc" + "Body");
+
+            GameObject merc = UnityEngine.Object.Instantiate<GameObject>(prefab, master.GetBody().transform.position, Quaternion.identity);
+            merc.AddComponent<MasterSuicideOnTimer>().lifeTimer = 120f; // Summons the boy for 2 minutes
+            CharacterMaster mercMaster = merc.GetComponent<CharacterMaster>();
+            merc.GetComponent<BaseAI>().leader.gameObject = master.GetBody().gameObject;
+            mercMaster.teamIndex = TeamIndex.Monster;
+
+            NetworkServer.Spawn(merc);
+            CharacterBody m = mercMaster.SpawnBody(body, master.GetBody().transform.position, Quaternion.identity);
+            m.baseDamage = master.GetBody().baseDamage / 4;
+
+            // More to make them look goofy than get their effects.
+            mercMaster.inventory.GiveItem(ItemIndex.SprintArmor, 1);
+            mercMaster.inventory.GiveItem(ItemIndex.CritGlasses, 1);
+            mercMaster.inventory.GiveItem(ItemIndex.AttackSpeedOnCrit, 1);
+            mercMaster.inventory.GiveItem(ItemIndex.PersonalShield, 1);
+        } // EnemyMerc
+
         // Let it burn
         private void FireTrail()
         {
@@ -532,13 +579,6 @@ namespace WildMagic
                         baseToken = "SHRINE_CHANCE_SUCCESS_MESSAGE"
                     });
                 }
-                /*
-                Action<bool, Interactor> action = ShrineChanceBehavior.onShrineChancePurchaseGlobal;
-                if (action != null)
-                {
-                    action(flag, activator);
-                }
-                */
 
                 EffectManager.instance.SpawnEffect(Resources.Load<GameObject>("Prefabs/Effects/ShrineUseEffect"), new EffectData
                 {
@@ -672,6 +712,16 @@ namespace WildMagic
             } // if
         } // ReRollItem
 
+        // Give em a new nick
+        private void RuinName()
+        {
+            string[] goofNames = { "Jerry", "Sarah", "Commando", "Acrid", "Hopoo", "Ghor", "Paul", "Chris", "Providence",
+                "Jack-o-Lantern Dwyer", "Dwight", "Lucille Bluth", "John Mulaney", "Stone Titan",
+                "Leslie Knope", "Andy Dwyer", "April Ludgate", "Ben Wyatt", "Ann Perkins", "Chris Traeger", "Ron Swanson"};
+
+            goofName = goofNames[UnityEngine.Random.Range(0, goofNames.Length)];
+        } // void
+
         // A Friend
         private void SpawnBeetleGuard()
         {
@@ -705,11 +755,12 @@ namespace WildMagic
             {
                 CharacterBody b = master.GetBody();
                 tankDamageBuff = b.baseDamage * 2;
-                tankMoveDebuff = b.baseMoveSpeed / 4;
-                tankArmorBuff = b.baseArmor * 2;
+                tankMoveDebuff = b.baseMoveSpeed * 0.75f;
+                tankArmorBuff = 50f;
                 b.baseDamage += tankDamageBuff;
                 b.baseMoveSpeed -= tankMoveDebuff;
                 b.baseArmor += tankArmorBuff;
+                b.RecalculateStats();
                 tankTimer = 600; // 10 seconds
             } // if
             else
