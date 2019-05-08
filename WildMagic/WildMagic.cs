@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using BepInEx;
 using RoR2;
 using RoR2.CharacterAI;
@@ -13,9 +14,10 @@ namespace WildMagic
     public class WildMagic : BaseUnityPlugin
     { 
         
-        bool testFlag = true;
-        bool messagesEnabled = false;
-        string rollChance = "medium";
+        private bool started = false;
+        private bool messagesEnabled = false;
+        private string rollChance = "medium";
+        private List<MagicHandler> magicHandlers = new List<MagicHandler>();
        
         // Woke
         public void Awake()
@@ -38,18 +40,32 @@ namespace WildMagic
         public void Update()
         {
             // Run actually started
-            if (Run.instance.fixedTime > 0)
+            if (Run.instance != null && Run.instance.fixedTime >= 0)
             {
-                if(testFlag)
+                // Shenanigans for multiple runs in a session
+                if (Run.instance.fixedTime < 1 && started == true)
                 {
-                    for (int i = 0; i < PlayerCharacterMasterController.instances.Count; i++)
+                    started = false;
+                } // if
+                if (Run.instance.fixedTime >= 1 && !started)
+                {
+                    int playerCount = PlayerCharacterMasterController.instances.Count;
+                    for (int i = 0; i < playerCount; i++)
                     {
-                        MagicHandler newHandler = new MagicHandler(PlayerCharacterMasterController.instances[i].master);
-                        newHandler.EnableMessages(messagesEnabled);
-                        newHandler.SetChance(rollChance);
+                        if (i >= magicHandlers.Count)
+                        {
+                            MagicHandler newHandler = new MagicHandler(PlayerCharacterMasterController.instances[i].master);
+                            newHandler.EnableMessages(messagesEnabled);
+                            newHandler.SetChance(rollChance);
+                            magicHandlers.Add(newHandler);
+                        } // if
+                        else
+                        {
+                            magicHandlers[i].SetMaster(PlayerCharacterMasterController.instances[i].master);
+                        } // else
                     }
-                    testFlag = false;
-                }
+                    started = true;
+                } // if
                 // Debugging Key
                 if (Input.GetKeyDown(KeyCode.F2))
                 {

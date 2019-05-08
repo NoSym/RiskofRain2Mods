@@ -18,6 +18,7 @@ namespace WildMagic
 
         private enum Effects
         {
+            BeetleSquad,
             BeginHaunt,
             BossMode,
             BuffDamage,
@@ -57,6 +58,9 @@ namespace WildMagic
         // Ha
         private string goofName = "";
 
+        // For the horde
+        private int beetleWaveMax = 5;
+
         // Flags
         private bool canRoll = true;
         private bool haunted = false;
@@ -65,7 +69,9 @@ namespace WildMagic
         // Arrays
         private DamageTrail[] trailArray = new DamageTrail[10];
 
-        // Timers
+        // Timers and temp vars
+        private float beetleTimer = -1; // Not the guards
+        private float beetleWaveCounter = 0;
         private float bossTimer = -1;
         private float dmgBuff = 0;
         private float dmgBuffTimer = -1;
@@ -95,7 +101,7 @@ namespace WildMagic
             // Magic Proc
             On.RoR2.CharacterBody.OnDamageDealt += (orig, self, report) =>
             {
-                if (self.Equals(master.GetBody()) && !report.victimMaster.Equals(master))
+                if (master != null && self.Equals(master.GetBody()) && report.victimMaster != null && !report.victimMaster.Equals(master))
                 {
                     if (rollTimer == 0 && canRoll)
                     {
@@ -117,14 +123,17 @@ namespace WildMagic
             On.RoR2.Run.Update += (orig, self) =>
             {
                 orig(self);
-                UpdateTimers();
+                if (master != null)
+                {
+                    UpdateTimers();
+                } // if
             };
 
             // Spooky
             On.RoR2.GlobalEventManager.OnCharacterDeath += (orig, self, report) =>
             {
                 // Ghosts
-                if (haunted && report.damageInfo.attacker.Equals(master.GetBody().gameObject))
+                if (master != null && haunted && report.damageInfo.attacker.Equals(master.GetBody().gameObject))
                 {
                     CharacterBody ghost = Util.TryToCreateGhost(report.victimBody, report.victimBody, 30);
                     ghost.baseDamage /= 6.0f; // I mean seriously, 500%?
@@ -136,7 +145,7 @@ namespace WildMagic
             // They took my naaaame Juuustin
             On.RoR2.PlayerCharacterMasterController.GetDisplayName += (orig, self) =>
             {
-                if (self.Equals(master.GetComponent<PlayerCharacterMasterController>()) && goofName != "")
+                if (master != null && self.Equals(master.GetComponent<PlayerCharacterMasterController>()) && goofName != "")
                     return goofName;
                 else
                     return orig(self);
@@ -152,6 +161,10 @@ namespace WildMagic
 
             switch((Effects)UnityEngine.Random.Range(0, (int)Effects.Count))
             {
+                case Effects.BeetleSquad:
+                    BeetleSquad();
+                    message = "Infestation!";
+                    break;
                 case Effects.BeginHaunt:
                     BeginHaunt();
                     message = "Souls of the slain return for vengeance.";
@@ -174,7 +187,7 @@ namespace WildMagic
                     break;
                 case Effects.DestroyEquipment:
                     DestroyEquipment();
-                    message = "Something in your possession has broken.";
+                    message = "You feel underequipped for this task.";
                     break;
                 case Effects.DoubleMoney:
                     DoubleMoney();
@@ -190,11 +203,11 @@ namespace WildMagic
                     break;
                 case Effects.FireTrail:
                     FireTrail();
-                    message = "Time for trailblazing.";
+                    message = "Time to blaze a trail.";
                     break;
                 case Effects.Funballs:
                     Funballs();
-                    message = "Operation Fun activated.";
+                    message = "Operation FUN activated.";
                     break;
                 case Effects.Gamble:
                     Gamble();
@@ -252,7 +265,7 @@ namespace WildMagic
             } // switch
 
             if (messagesEnabled)
-                Chat.AddMessage(message);
+                Chat.AddMessage("<color=#1E90FF>" + message + "</color>");
         } // roll
 
         /// <summary>
@@ -287,15 +300,61 @@ namespace WildMagic
             } // switch
         } // setChance
 
+        // Changing of the guard
+        public void SetMaster(CharacterMaster newMaster)
+        {
+            master = newMaster;
+            ResetTemps();
+        } // SetMaster
+
+        // Called with set master
+        private void ResetTemps()
+        {
+            beetleTimer = -1; // Not the guards
+            beetleWaveCounter = 0;
+            bossTimer = -1;
+            dmgBuff = 0;
+            dmgBuffTimer = -1;
+            dmgDebuff = 0;
+            dmgDebuffTimer = -1;
+            ghostTimer = -1;
+            hauntedTimer = -1;
+            moveBuff = 0;
+            moveBuffTimer = -1;
+            hideTimer = -1;
+            trailTimer = -1;
+            funballTimer = -1;
+            rollTimer = 0;
+            tankDamageBuff = 0;
+            tankMoveDebuff = 0;
+            tankArmorBuff = 0;
+            tankTimer = -1;
+    } // ResetTemps
+
         private void UpdateTimers()
         {
             TickTimers();
-            ResolveTimers();            
+            ResolveTimers();
         } // Update
 
         // Could be cleaner!
         private void ResolveTimers()
         {
+            if (beetleTimer == 0)
+            {
+                if (beetleWaveCounter < beetleWaveMax)
+                {
+                    BeetleSquad();
+                    beetleTimer = 180; // 5 second intervals
+                    beetleWaveCounter++;
+                } // if
+                else
+                {
+                    beetleTimer = -1;
+                    beetleWaveCounter = 0;
+                }
+            } // beetleTimer
+
             if (bossTimer == 0)
             {
                 master.bodyPrefab = oldBody;
@@ -370,6 +429,8 @@ namespace WildMagic
         // DeltaTime?
         private void TickTimers()
         {
+            if (beetleTimer > 0)
+                beetleTimer--;
             if (bossTimer > 0)
                 bossTimer--;
             if (dmgBuffTimer > 0)
@@ -393,6 +454,47 @@ namespace WildMagic
             if (trailTimer > 0)
                 trailTimer--;
         } // TickTimers
+
+        // They comin
+        private void BeetleSquad()
+        {
+            for (int i = 0; i < 10; i++)
+            {
+                GameObject gameObject = DirectorCore.instance.TrySpawnObject((SpawnCard)Resources.Load("SpawnCards/CharacterSpawnCards/cscBeetle"), new DirectorPlacementRule
+                {
+                    placementMode = DirectorPlacementRule.PlacementMode.Approximate,
+                    minDistance = 10f,
+                    maxDistance = 30f,
+                    spawnOnTarget = master.GetBody().transform
+                }, RoR2Application.rng);
+                if (gameObject)
+                {
+                    CharacterMaster component = gameObject.GetComponent<CharacterMaster>();
+                    if (component)
+                    {
+                        component.teamIndex = TeamIndex.Monster;
+                        component.inventory.GiveItem(ItemIndex.Hoof, 10);
+                        if (UnityEngine.Random.Range(0, 100) < 20)
+                        {
+                            switch (UnityEngine.Random.Range(0, 3))
+                            {
+                                case 0:
+                                    component.inventory.SetEquipmentIndex(EquipmentIndex.AffixRed);
+                                    break;
+                                case 1:
+                                    component.inventory.SetEquipmentIndex(EquipmentIndex.AffixBlue);
+                                    break;
+                                case 2:
+                                    component.inventory.SetEquipmentIndex(EquipmentIndex.AffixWhite);
+                                    break;
+                            } // switch
+                        } // if
+                    } // if
+                } // if
+
+                beetleTimer = 180; // 3 second intervals
+            } // for
+        } // BeetleSquad
 
         // Spooky
         private void BeginHaunt()
@@ -493,9 +595,7 @@ namespace WildMagic
             GameObject body = BodyCatalog.FindBodyPrefab("Merc" + "Body");
 
             GameObject merc = UnityEngine.Object.Instantiate<GameObject>(prefab, master.GetBody().transform.position, Quaternion.identity);
-            merc.AddComponent<MasterSuicideOnTimer>().lifeTimer = 120f; // Summons the boy for 2 minutes
             CharacterMaster mercMaster = merc.GetComponent<CharacterMaster>();
-            merc.GetComponent<BaseAI>().leader.gameObject = master.GetBody().gameObject;
             mercMaster.teamIndex = TeamIndex.Monster;
 
             NetworkServer.Spawn(merc);
@@ -725,6 +825,7 @@ namespace WildMagic
         // A Friend
         private void SpawnBeetleGuard()
         {
+            /*
             GameObject prefab = MasterCatalog.FindMasterPrefab("BeetleGuardAlly" + "Master");
             GameObject body = BodyCatalog.FindBodyPrefab("BeetleGuardAlly" + "Body");
 
@@ -736,6 +837,42 @@ namespace WildMagic
 
             NetworkServer.Spawn(beetle);
             beetleMaster.SpawnBody(body, master.GetBody().transform.position, Quaternion.identity);
+            */
+            GameObject gameObject = DirectorCore.instance.TrySpawnObject((SpawnCard)Resources.Load("SpawnCards/CharacterSpawnCards/cscBeetleGuardAlly"), new DirectorPlacementRule
+            {
+                placementMode = DirectorPlacementRule.PlacementMode.Approximate,
+                minDistance = 3f,
+                maxDistance = 40f,
+                spawnOnTarget = master.GetBody().transform
+            }, RoR2Application.rng);
+
+            if (gameObject)
+            {
+                CharacterMaster component = gameObject.GetComponent<CharacterMaster>();
+                AIOwnership component2 = gameObject.GetComponent<AIOwnership>();
+                BaseAI component3 = gameObject.GetComponent<BaseAI>();
+                if (component)
+                {
+                    component.teamIndex = TeamIndex.Player;
+                    component.inventory.GiveItem(ItemIndex.BoostDamage, 30);
+                    component.inventory.GiveItem(ItemIndex.BoostHp, 10);
+                    GameObject bodyObject = component.GetBodyObject();
+                    if (bodyObject)
+                    {
+                        Deployable component4 = bodyObject.GetComponent<Deployable>();
+                        master.AddDeployable(component4, DeployableSlot.BeetleGuardAlly);
+                    }
+                }
+                if (component2)
+                {
+                    component2.ownerMaster = master;
+                }
+                if (component3)
+                {
+                    component3.leader.gameObject = master.GetBody().gameObject;
+                }
+            }
+            //}
         } // SpawnBeetleGuard
 
         // Yes I'm writing a function for this
