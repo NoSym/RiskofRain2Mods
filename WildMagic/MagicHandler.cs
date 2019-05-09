@@ -35,6 +35,7 @@ namespace WildMagic
             HideCrosshair,
             HalveMoney,
             Hellfire,
+            IcarianFlight,
             Instakill,
             Meteors,
             MotherVagrant,
@@ -83,13 +84,14 @@ namespace WildMagic
         private float dmgBuffTimer = -1;
         private float dmgDebuff = 0;
         private float dmgDebuffTimer = -1;
+        private float flightTimer = -1;
+        private float funballTimer = -1;
         private float ghostTimer = -1;
         private float hauntedTimer = -1;
         private float moveBuff = 0;
         private float moveBuffTimer = -1;
         private float hideTimer = -1;
         private float trailTimer = -1;
-        private float funballTimer = -1;
         private float rollTimer = 0;
         private float surgeTimer = -1;
         private float tankDamageBuff = 0;
@@ -267,6 +269,10 @@ namespace WildMagic
                     Hellfire();
                     message = "HOT!";
                     break;
+                case Effects.IcarianFlight:
+                    IcarianFlight();
+                    message = "Icarian Flight!";
+                    break;
                 case Effects.Instakill:
                     Instakill();
                     message = "Death blow!";
@@ -368,13 +374,14 @@ namespace WildMagic
             dmgBuffTimer = -1;
             dmgDebuff = 0;
             dmgDebuffTimer = -1;
+            flightTimer = -1;
+            funballTimer = -1;
             ghostTimer = -1;
             hauntedTimer = -1;
             moveBuff = 0;
             moveBuffTimer = -1;
             hideTimer = -1;
             trailTimer = -1;
-            funballTimer = -1;
             rollTimer = 0;
             surgeTimer = -1;
             tankDamageBuff = 0;
@@ -427,6 +434,20 @@ namespace WildMagic
                 dmgDebuffTimer = -1;
             } // dmgDebuffTimer
 
+            if (flightTimer == 0)
+            {
+                master.GetBody().baseJumpCount -= 1000;
+                master.GetBody().baseJumpPower -= 25;
+                master.GetBody().RecalculateStats();
+                flightTimer = -1;
+            } // flightTimer
+
+            if (funballTimer == 0)
+            {
+                Run.instance.enabledArtifacts.RemoveArtifact(ArtifactIndex.Bomb);
+                funballTimer = -1;
+            } // funballTimer
+
             if (ghostTimer == 0)
             {
                 master.inventory.RemoveItem(ItemIndex.Ghost, 1);
@@ -444,12 +465,6 @@ namespace WildMagic
                 master.GetBody().hideCrosshair = false;
                 hideTimer = -1;
             } // hideTimer
-
-            if (funballTimer == 0)
-            {
-                Run.instance.enabledArtifacts.RemoveArtifact(ArtifactIndex.Bomb);
-                funballTimer = -1;
-            } // funballTimer
 
             if (moveBuffTimer == 0)
             {
@@ -497,6 +512,8 @@ namespace WildMagic
                 dmgDebuffTimer--;
             if (moveBuffTimer > 0)
                 moveBuffTimer--;
+            if (flightTimer > 0)
+                flightTimer--;
             if (funballTimer > 0)
                 funballTimer--;
             if (ghostTimer > 0)
@@ -785,6 +802,22 @@ namespace WildMagic
         {
             master.GetBody().AddHelfireDuration(6f);
         } // Hellfire
+
+        // References
+        private void IcarianFlight()
+        {
+            if (flightTimer == -1)
+            {
+                master.GetBody().baseJumpCount += 1000;
+                master.GetBody().baseJumpPower += 25;
+                master.GetBody().RecalculateStats();
+                flightTimer = 1200; // 20 seconds
+            } // if
+            else
+            {
+                flightTimer = 1200;
+            } // else
+        } // IcarianFlight
 
         // Instant death
         private void Instakill()
