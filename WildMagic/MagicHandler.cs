@@ -43,6 +43,7 @@ namespace WildMagic
             SpawnBeetleGuard,
             TakeOneDamage,
             TankMode,
+            WildSurge,
             Count
         };
 
@@ -54,6 +55,7 @@ namespace WildMagic
 
         // proc chance = rollChance * 0.5 + 1
         private int rollChance = 0;
+        private int rngCap = 200;
 
         // Ha
         private string goofName = "";
@@ -67,7 +69,7 @@ namespace WildMagic
         private bool messagesEnabled = false;
 
         // Arrays
-        private DamageTrail[] trailArray = new DamageTrail[10];
+        private DamageTrail[] trailArray = new DamageTrail[1]; // pointless atm
 
         // Timers and temp vars
         private float beetleTimer = -1; // Not the guards
@@ -85,6 +87,7 @@ namespace WildMagic
         private float trailTimer = -1;
         private float funballTimer = -1;
         private float rollTimer = 0;
+        private float surgeTimer = -1;
         private float tankDamageBuff = 0;
         private float tankMoveDebuff = 0;
         private float tankArmorBuff = 0;
@@ -107,7 +110,7 @@ namespace WildMagic
                     {
                         victim = report.victimMaster;
 
-                        if (UnityEngine.Random.Range(0, 200) <= rollChance) // 0.5% chance to magic
+                        if (UnityEngine.Random.Range(0, rngCap) <= rollChance) // 0.5% chance to magic
                         {
                             Roll();
                         } // if
@@ -262,6 +265,10 @@ namespace WildMagic
                     TankMode();
                     message = "Survive.";
                     break;
+                case Effects.WildSurge:
+                    WildSurge();
+                    message = "Magic overflowing!";
+                    break;
             } // switch
 
             if (messagesEnabled)
@@ -330,6 +337,7 @@ namespace WildMagic
             trailTimer = -1;
             funballTimer = -1;
             rollTimer = 0;
+            surgeTimer = -1;
             tankDamageBuff = 0;
             tankMoveDebuff = 0;
             tankArmorBuff = 0;
@@ -411,6 +419,12 @@ namespace WildMagic
                 moveBuffTimer = -1;
             } // moveBuffTimer
 
+            if (surgeTimer == 0)
+            {
+                rngCap = 200;
+                surgeTimer = -1;
+            } // if
+
             if (tankTimer == 0)
             {
                 master.GetBody().baseDamage -= tankDamageBuff;
@@ -454,6 +468,8 @@ namespace WildMagic
                 hauntedTimer--;
             if (rollTimer > 0)
                 rollTimer--;
+            if (surgeTimer > 0)
+                surgeTimer--;
             if (tankTimer > 0)
                 tankTimer--;
             if (trailTimer > 0)
@@ -891,5 +907,18 @@ namespace WildMagic
                 tankTimer = 600;
             } // else
         } // TankMode
+
+        private void WildSurge()
+        {
+            if (surgeTimer == -1)
+            {
+                surgeTimer = 300;
+                rngCap = 0;
+            } // if
+            else
+            {
+                surgeTimer = 300;
+            }
+        } // WildSurge
     } // MagicHandler Class
 } // Wildmagic Namespace
