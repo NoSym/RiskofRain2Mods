@@ -69,7 +69,6 @@ namespace WildMagic
                 // Debugging Key
                 if (Input.GetKeyDown(KeyCode.F2))
                 {
-                    //magicHandlers[0].IcarianFlight();
                 } // if
             } // if
         } // Update

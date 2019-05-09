@@ -23,6 +23,8 @@ namespace WildMagic
             BossMode,
             BuffDamage,
             BuffMove,
+            CommandoBackup,
+            Charm,
             DebuffDamage,
             DestroyEquipment,
             DoubleMoney,
@@ -220,6 +222,14 @@ namespace WildMagic
                 case Effects.BuffMove:
                     BuffMove();
                     message = "You've got the wind at your back.";
+                    break;
+                case Effects.CommandoBackup:
+                    CommandoBackup();
+                    message = "Hoorah.";
+                    break;
+                case Effects.Charm:
+                    Charm();
+                    message = "Someone had a change of heart.";
                     break;
                 case Effects.DebuffDamage:
                     DebuffDamage();
@@ -631,6 +641,55 @@ namespace WildMagic
             } // else
         } // BuffMove
 
+        // Hoorah
+        private void CommandoBackup()
+        {
+            for (int i = 0; i < 3; i++)
+            {
+                GameObject prefab = MasterCatalog.FindMasterPrefab("CommandoMonsterMaster");
+                GameObject body = BodyCatalog.FindBodyPrefab("CommandoBody");
+
+                GameObject commando = UnityEngine.Object.Instantiate<GameObject>(prefab, master.GetBody().transform.position, Quaternion.identity);
+                commando.AddComponent<MasterSuicideOnTimer>().lifeTimer = UnityEngine.Random.Range(60f, 120f);
+                CharacterMaster commandoMaster = commando.GetComponent<CharacterMaster>();
+                commandoMaster.teamIndex = TeamIndex.Player;
+
+                NetworkServer.Spawn(commando);
+                if (victim != null)
+                {
+                    commandoMaster.SpawnBody(body, victim.GetBody().transform.position, Quaternion.identity);
+                } // if
+                else
+                {
+                    commandoMaster.SpawnBody(body, master.GetBody().transform.position, Quaternion.identity);
+                } // else
+                
+                // Support Builds
+                switch (i)
+                {
+                    case 0:
+                        commandoMaster.inventory.GiveItem(ItemIndex.Bandolier, 5);
+                        break;
+                    case 1:
+                        commandoMaster.inventory.GiveItem(ItemIndex.Tooth, 5);
+                        break;
+                    case 2:
+                        commandoMaster.inventory.GiveItem(ItemIndex.SlowOnHit, 1);
+                        break;
+                } // switch
+            } // for
+        } // CommandoBackup
+
+        // I'm sure
+        private void Charm()
+        {
+            if (victim != null)
+            {
+                victim.GetBody().teamComponent.teamIndex = TeamIndex.Player;
+                victim.inventory.GiveItem(ItemIndex.BoostDamage, 30);
+            } // if
+        } // Charm
+
         // 'Pardner
         private void DebuffDamage()
         {
@@ -668,8 +727,8 @@ namespace WildMagic
         // They ARE mercenaries
         private void EnemyMerc()
         {
-            GameObject prefab = MasterCatalog.FindMasterPrefab("MercMonster" + "Master");
-            GameObject body = BodyCatalog.FindBodyPrefab("Merc" + "Body");
+            GameObject prefab = MasterCatalog.FindMasterPrefab("MercMonsterMaster");
+            GameObject body = BodyCatalog.FindBodyPrefab("MercBody");
 
             GameObject merc = UnityEngine.Object.Instantiate<GameObject>(prefab, master.GetBody().transform.position, Quaternion.identity);
             CharacterMaster mercMaster = merc.GetComponent<CharacterMaster>();
@@ -970,7 +1029,6 @@ namespace WildMagic
                     component3.leader.gameObject = master.GetBody().gameObject;
                 }
             }
-            //}
         } // SpawnBeetleGuard
 
         // Yes I'm writing a function for this
