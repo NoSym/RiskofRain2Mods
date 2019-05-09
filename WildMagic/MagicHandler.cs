@@ -37,6 +37,7 @@ namespace WildMagic
             Hellfire,
             Instakill,
             Meteors,
+            MotherVagrant,
             RandomizeSurvivor,
             RerollItems,
             RuinName,
@@ -62,6 +63,9 @@ namespace WildMagic
 
         // For the horde
         private int beetleWaveMax = 5;
+
+        // Jellies
+        private List<CharacterMaster> vagrantList = new List<CharacterMaster>();
 
         // Flags
         private bool canRoll = true;
@@ -135,11 +139,42 @@ namespace WildMagic
             // Spooky
             On.RoR2.GlobalEventManager.OnCharacterDeath += (orig, self, report) =>
             {
-                // Ghosts
-                if (master != null && haunted && report.damageInfo.attacker.Equals(master.GetBody().gameObject))
+                if (master != null)
                 {
-                    CharacterBody ghost = Util.TryToCreateGhost(report.victimBody, report.victimBody, 30);
-                    ghost.baseDamage /= 6.0f; // I mean seriously, 500%?
+                    // Ghosts
+                    if (haunted && report.damageInfo.attacker.Equals(master.GetBody().gameObject))
+                    {
+                        CharacterBody ghost = Util.TryToCreateGhost(report.victimBody, report.victimBody, 30);
+                        ghost.baseDamage /= 6.0f; // I mean seriously, 500%?
+                    } // if
+
+                    // Big jellyfish
+                    for (int i = 0; i < vagrantList.Count; i++)
+                    {
+                        if (report.victimMaster.Equals(vagrantList[i]))
+                        {
+                            for (int j = 0; j < 20; j++)
+                            {
+                                GameObject gameObject = DirectorCore.instance.TrySpawnObject((SpawnCard)Resources.Load("SpawnCards/CharacterSpawnCards/cscJellyfish"), new DirectorPlacementRule
+                                {
+                                    placementMode = DirectorPlacementRule.PlacementMode.Approximate,
+                                    minDistance = 3f,
+                                    maxDistance = 25f,
+                                    spawnOnTarget = report.victimBody.transform
+                                }, RoR2Application.rng);
+                                if (gameObject)
+                                {
+                                    CharacterMaster component = gameObject.GetComponent<CharacterMaster>();
+                                    if (component)
+                                    {
+                                        component.teamIndex = TeamIndex.Monster;
+                                    } // if
+                                } // if
+                            } // for
+
+                            vagrantList.RemoveAt(i);
+                        } // if
+                    } // for
                 } // if
 
                 orig(self, report);
@@ -239,6 +274,10 @@ namespace WildMagic
                 case Effects.Meteors:
                     Meteors();
                     message = "The sky is falling.";
+                    break;
+                case Effects.MotherVagrant:
+                    MotherVagrant();
+                    message = "Mother Vagrant appears.";
                     break;
                 case Effects.RandomizeSurvivor:
                     RandomizeSurvivor();
@@ -762,6 +801,30 @@ namespace WildMagic
             component.isCrit = Util.CheckRoll(master.GetBody().crit, master);
             NetworkServer.Spawn(component.gameObject);
         } // Meteors
+
+        // Biggun
+        private void MotherVagrant()
+        {
+            GameObject gameObject = DirectorCore.instance.TrySpawnObject((SpawnCard)Resources.Load("SpawnCards/CharacterSpawnCards/cscVagrant"), new DirectorPlacementRule
+            {
+                placementMode = DirectorPlacementRule.PlacementMode.Approximate,
+                minDistance = 10f,
+                maxDistance = 30f,
+                spawnOnTarget = master.GetBody().transform
+            }, RoR2Application.rng);
+            if (gameObject)
+            {
+                CharacterMaster component = gameObject.GetComponent<CharacterMaster>();
+                CharacterBody component2 = gameObject.GetComponent<CharacterBody>();
+                if (component)
+                {
+                    component.teamIndex = TeamIndex.Monster;
+                    component.GetBody().baseMaxHealth = component.GetBody().baseMaxHealth / 4;
+                    component.money = (uint)Run.instance.GetDifficultyScaledCost(50);
+                    vagrantList.Add(component);
+                } // if
+            } // if
+        } // MotherVagrant
 
         // Because why not
         private void RandomizeSurvivor()
