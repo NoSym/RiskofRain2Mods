@@ -687,6 +687,7 @@ namespace WildMagic
             {
                 victim.GetBody().teamComponent.teamIndex = TeamIndex.Player;
                 victim.inventory.GiveItem(ItemIndex.BoostDamage, 30);
+                victim.inventory.GiveItem(ItemIndex.HealthDecay, 30);
             } // if
         } // Charm
 
