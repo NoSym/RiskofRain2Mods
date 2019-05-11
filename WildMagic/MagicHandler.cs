@@ -61,6 +61,12 @@ namespace WildMagic
         private int rollChance = 0;
         private int rngCap = 200;
 
+        // Clarity
+        string color = "red";
+
+        // Janky move speed buff
+        int fakeHooves = 0;
+
         // Ha
         private string goofName = "";
 
@@ -82,7 +88,6 @@ namespace WildMagic
         private float beetleTimer = -1; // Not the guards
         private float beetleWaveCounter = 0;
         private float bossTimer = -1;
-        private float dmgBuff = 0;
         private float dmgBuffTimer = -1;
         private float dmgDebuff = 0;
         private float dmgDebuffTimer = -1;
@@ -90,15 +95,11 @@ namespace WildMagic
         private float funballTimer = -1;
         private float ghostTimer = -1;
         private float hauntedTimer = -1;
-        private float moveBuff = 0;
         private float moveBuffTimer = -1;
         private float hideTimer = -1;
         private float trailTimer = -1;
         private float rollTimer = 0;
         private float surgeTimer = -1;
-        private float tankDamageBuff = 0;
-        private float tankMoveDebuff = 0;
-        private float tankArmorBuff = 0;
         private float tankTimer = -1;
 
         /// <summary>
@@ -109,6 +110,24 @@ namespace WildMagic
         {
             master = magicMaster;
 
+            // Incompatibility with mods that want to show you this placeholder icon, I guess
+            ItemCatalog.GetItemDef(ItemIndex.BoostDamage).hidden = true;
+
+            // Yeah just lie about how many hooves you have sure
+            On.RoR2.CharacterBody.RecalculateStats += (orig, self) =>
+            {
+                if (master.GetBody().Equals(self))
+                {
+                    master.inventory.GiveItem(ItemIndex.Hoof, fakeHooves);
+                    orig(self);
+                    master.inventory.RemoveItem(ItemIndex.Hoof, fakeHooves);
+                } // if
+                else
+                {
+                    orig(self);
+                } // else
+            }; // RecalculateStats
+
             // Magic Proc
             On.RoR2.CharacterBody.OnDamageDealt += (orig, self, report) =>
             {
@@ -118,6 +137,7 @@ namespace WildMagic
                     {
                         victim = report.victimMaster;
 
+                        TankMode();
                         if (UnityEngine.Random.Range(0, rngCap) <= rollChance) // 0.5% chance to magic
                         {
                             Roll();
@@ -128,7 +148,7 @@ namespace WildMagic
                 } // if
 
                 orig(self, report);
-            };
+            }; // DamageDealt
 
             // For the timers
             On.RoR2.Run.Update += (orig, self) =>
@@ -138,7 +158,7 @@ namespace WildMagic
                 {
                     UpdateTimers();
                 } // if
-            };
+            }; // Update
 
             // Spooky
             On.RoR2.GlobalEventManager.OnCharacterDeath += (orig, self, report) =>
@@ -148,7 +168,7 @@ namespace WildMagic
                     // Ghosts
                     if (haunted && report.damageInfo.attacker.Equals(master.GetBody().gameObject))
                     {
-                        CharacterBody ghost = Util.TryToCreateGhost(report.victimBody, report.victimBody, 30);
+                        CharacterBody ghost = Util.TryToCreateGhost(report.victimBody, report.victimBody, 20);
                         ghost.baseDamage /= 6.0f; // I mean seriously, 500%?
                     } // if
 
@@ -177,21 +197,13 @@ namespace WildMagic
                             } // for
 
                             vagrantList.RemoveAt(i);
+                            i--; // In case multiple vagrants die in the same frame somehow
                         } // if
                     } // for
                 } // if
 
                 orig(self, report);
-            };
-
-            // They took my naaaame Juuustin
-            On.RoR2.PlayerCharacterMasterController.GetDisplayName += (orig, self) =>
-            {
-                if (master != null && self.Equals(master.GetComponent<PlayerCharacterMasterController>()) && goofName != "")
-                    return goofName;
-                else
-                    return orig(self);
-            };
+            }; // CharacterDeath
         } // MagicHandler Constructor
 
         /// <summary>
@@ -330,7 +342,7 @@ namespace WildMagic
             {
                 Chat.SendBroadcastChat(new Chat.SimpleChatMessage
                 {
-                    baseToken = "<color=#1E90FF>" + master.GetComponent<PlayerCharacterMasterController>().GetDisplayName() + " triggered wild magic!\n" + message + "</color>"
+                    baseToken = "<color=" + color + ">" + master.GetComponent<PlayerCharacterMasterController>().GetDisplayName() + "</color> <color=#1E90FF>triggered wild magic!\n" + message + "</color>"
                 });
             } // if
         } // roll
@@ -367,6 +379,15 @@ namespace WildMagic
             } // switch
         } // setChance
 
+        /// <summary>
+        /// Sets the color of the player's username for popup messages
+        /// </summary>
+        /// <param name="color">Name or hex code of color</param>
+        public void SetColor(string color)
+        {
+            this.color = color;
+        } // SetColor
+
         // Changing of the guard
         public void SetMaster(CharacterMaster newMaster)
         {
@@ -377,10 +398,14 @@ namespace WildMagic
         // Called with set master
         private void ResetTemps()
         {
+            vagrantList = new List<CharacterMaster>();
+            fakeHooves = 0;
+            rngCap = 200;
+            canRoll = true;
+            haunted = false;
             beetleTimer = -1; // Not the guards
             beetleWaveCounter = 0;
             bossTimer = -1;
-            dmgBuff = 0;
             dmgBuffTimer = -1;
             dmgDebuff = 0;
             dmgDebuffTimer = -1;
@@ -388,15 +413,11 @@ namespace WildMagic
             funballTimer = -1;
             ghostTimer = -1;
             hauntedTimer = -1;
-            moveBuff = 0;
             moveBuffTimer = -1;
             hideTimer = -1;
             trailTimer = -1;
             rollTimer = 0;
             surgeTimer = -1;
-            tankDamageBuff = 0;
-            tankMoveDebuff = 0;
-            tankArmorBuff = 0;
             tankTimer = -1;
     } // ResetTemps
 
@@ -434,7 +455,7 @@ namespace WildMagic
 
             if (dmgBuffTimer == 0)
             {
-                master.GetBody().baseDamage -= dmgBuff;
+                master.inventory.RemoveItem(ItemIndex.BoostDamage, 10);
                 dmgBuffTimer = -1;
             } // dmgBuffTimer
 
@@ -478,7 +499,7 @@ namespace WildMagic
 
             if (moveBuffTimer == 0)
             {
-                master.GetBody().baseMoveSpeed -= moveBuff;
+                fakeHooves = 0;
                 master.GetBody().RecalculateStats();
                 moveBuffTimer = -1;
             } // moveBuffTimer
@@ -487,14 +508,11 @@ namespace WildMagic
             {
                 rngCap = 200;
                 surgeTimer = -1;
-            } // if
+            } // surgeTimer
 
             if (tankTimer == 0)
             {
-                master.GetBody().baseDamage -= tankDamageBuff;
-                master.GetBody().baseMoveSpeed += tankMoveDebuff;
-                master.GetBody().baseArmor -= tankArmorBuff;
-                master.GetBody().RecalculateStats();
+                master.inventory.RemoveItem(ItemIndex.BoostDamage, 5);
                 tankTimer = -1;
             } // tankTimer
 
@@ -561,6 +579,7 @@ namespace WildMagic
                     {
                         component.teamIndex = TeamIndex.Monster;
                         component.inventory.GiveItem(ItemIndex.Hoof, 10);
+                        component.inventory.GiveItem(ItemIndex.Syringe, 10);
                         if (UnityEngine.Random.Range(0, 100) < 20)
                         {
                             switch (UnityEngine.Random.Range(0, 3))
@@ -587,7 +606,7 @@ namespace WildMagic
         private void BeginHaunt()
         {
             haunted = true;
-            hauntedTimer = 1800; // 30 seconds
+            hauntedTimer = 1200; // 20 seconds
         } // BeginHaunt
 
         // I am become imp
@@ -595,13 +614,14 @@ namespace WildMagic
         {
             if (bossTimer == -1)
             {
+                master.GetBody().AddTimedBuff(BuffIndex.Immune, 3f);
                 string[] bossPrefabs = { "ImpBossBody", "TitanBody", "ClayBossBody" };
                 string boss = bossPrefabs[UnityEngine.Random.Range(0, bossPrefabs.Length)];
                 GameObject newBody = BodyCatalog.FindBodyPrefab(boss);
                 oldBody = master.bodyPrefab;
                 master.bodyPrefab = newBody;
                 master.Respawn(master.GetBody().footPosition, master.GetBody().transform.rotation, true);
-                canRoll = false; // Things could get weird if we use magic while Imp'd
+                canRoll = false; // Things could get weird if we use magic while Boss'd
                 bossTimer = 1800;// 30 seconds
             } // if
             else
@@ -615,8 +635,7 @@ namespace WildMagic
         {
             if (dmgBuffTimer == -1)
             {
-                dmgBuff = master.GetBody().baseDamage;
-                master.GetBody().baseDamage += dmgBuff;
+                master.inventory.GiveItem(ItemIndex.BoostDamage, 10);
                 dmgBuffTimer = 900; // 15 seconds
             } // if
             else
@@ -630,8 +649,7 @@ namespace WildMagic
         {
             if (moveBuffTimer == -1)
             {
-                moveBuff = master.GetBody().baseMoveSpeed;
-                master.GetBody().baseMoveSpeed += moveBuff;
+                fakeHooves = 7;
                 master.GetBody().RecalculateStats();
                 moveBuffTimer = 900; // 15 seconds
             } // if
@@ -835,6 +853,7 @@ namespace WildMagic
         {
             if (ghostTimer == -1)
             {
+                ItemCatalog.GetItemDef(ItemIndex.Ghost).hidden = true;
                 master.inventory.GiveItem(ItemIndex.Ghost, 1);
                 ghostTimer = 600; // 10 seconds
             } // if
@@ -922,6 +941,7 @@ namespace WildMagic
         // Because why not
         private void RandomizeSurvivor()
         {
+            master.GetBody().AddTimedBuff(BuffIndex.Immune, 3f);
             string[] survivorPrefabs = { "CommandoBody", "ToolbotBody", "HuntressBody", "EngiBody", "MageBody", "MercBody" };
             string newSurvivor = survivorPrefabs[UnityEngine.Random.Range(0, survivorPrefabs.Length)];
             GameObject newBody = BodyCatalog.FindBodyPrefab(newSurvivor);
@@ -992,11 +1012,15 @@ namespace WildMagic
         // Give em a new nick
         private void RuinName()
         {
-            string[] goofNames = { "Jerry", "Sarah", "Commando", "Acrid", "Hopoo", "Ghor", "Paul", "Chris", "Providence",
-                "Jack-o-Lantern Dwyer", "Dwight", "Lucille Bluth", "John Mulaney", "Stone Titan",
-                "Leslie Knope", "Andy Dwyer", "April Ludgate", "Ben Wyatt", "Ann Perkins", "Chris Traeger", "Ron Swanson"};
+            string[] goofNames = { "Commando", "Acrid", "Providence", "Jack-o-Lantern Dwyer", "Lucille Bluth", "Stone Titan",
+                "Leslie Knope", "Andy Dwyer", "April Ludgate", "Ben Wyatt", "Ann Perkins", "Chris Traeger", "Ron Swanson", "Michael Scott",
+                "Jim from The Office", "Rainn Wilson", "Robert 'The Lizard King' California", "Enforcer", "Sniper", "No One"};
 
             goofName = goofNames[UnityEngine.Random.Range(0, goofNames.Length)];
+            PlayerCharacterMasterController controller = master.GetComponent<PlayerCharacterMasterController>();
+
+            if (controller && controller.networkUserObject && controller.networkUserObject.GetComponent<NetworkUser>())
+                controller.networkUserObject.GetComponent<NetworkUser>().userName = goofName;
         } // void
 
         // A Friend
@@ -1048,13 +1072,9 @@ namespace WildMagic
             if (tankTimer == -1)
             {
                 CharacterBody b = master.GetBody();
-                tankDamageBuff = b.baseDamage * 2;
-                tankMoveDebuff = b.baseMoveSpeed * 0.75f;
-                tankArmorBuff = 50f;
-                b.baseDamage += tankDamageBuff;
-                b.baseMoveSpeed -= tankMoveDebuff;
-                b.baseArmor += tankArmorBuff;
-                b.RecalculateStats();
+                master.inventory.GiveItem(ItemIndex.BoostDamage, 5);
+                b.AddTimedBuff(BuffIndex.ArmorBoost, 10f);
+                b.AddTimedBuff(BuffIndex.ClayGoo, 10f);
                 tankTimer = 600; // 10 seconds
             } // if
             else

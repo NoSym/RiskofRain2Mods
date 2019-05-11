@@ -24,6 +24,12 @@ namespace WildMagic
         {
             messagesEnabled = base.Config.Wrap<bool>("Settings", "MessagesEnabled", "If true each wild magic effect will display a chat message when it occurs.", true).Value;
             rollChance = base.Config.Wrap<string>("Settings", "RollChance", "Roll chance for a wild magic effect (low, medium, high).", "medium").Value;
+
+            On.RoR2.Inventory.GetItemCount += (orig, self, index) =>
+            {
+                Chat.AddMessage("GROSS!");
+                return orig(self, index);
+            };
         } // Awake
 
         // Note that this keeps the original ai, which is kinda funny since it's literally the previous enemy's brain in a new body
@@ -57,6 +63,21 @@ namespace WildMagic
                             MagicHandler newHandler = new MagicHandler(PlayerCharacterMasterController.instances[i].master);
                             newHandler.EnableMessages(messagesEnabled);
                             newHandler.SetChance(rollChance);
+                            switch (i)
+                            {
+                                case 0:
+                                    newHandler.SetColor("red");
+                                    break;
+                                case 1:
+                                    newHandler.SetColor("blue");
+                                    break;
+                                case 2:
+                                    newHandler.SetColor("yellow");
+                                    break;
+                                case 3:
+                                    newHandler.SetColor("green");
+                                    break;
+                            } // switch
                             magicHandlers.Add(newHandler);
                         } // if
                         else
@@ -69,6 +90,7 @@ namespace WildMagic
                 // Debugging Key
                 if (Input.GetKeyDown(KeyCode.F2))
                 {
+                    Chat.AddMessage("Hoof Count" + PlayerCharacterMasterController.instances[0].master.inventory.GetItemCount(ItemIndex.Hoof));
                 } // if
             } // if
         } // Update
