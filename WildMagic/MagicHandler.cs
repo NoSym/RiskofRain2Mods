@@ -57,7 +57,7 @@ namespace WildMagic
         // Probably a bad idea
         private CharacterMaster victim;
 
-        // proc chance = rollChance * 0.5 + 1
+        // proc chance = rollChance * 0.5 + 0.5
         private int rollChance = 0;
         private int rngCap = 200;
 
@@ -81,7 +81,8 @@ namespace WildMagic
         private bool rollReady = true; // For rolls
         private bool debuffed = false;
         private bool haunted = false;
-        private bool messagesEnabled = false;
+        private bool messagesEnabled = true;
+        private bool spite = true;
 
         // Arrays
         private DamageTrail[] trailArray = new DamageTrail[1]; // pointless atm
@@ -257,8 +258,16 @@ namespace WildMagic
                     message = "Time to blaze a trail.";
                     break;
                 case Effects.Funballs:
-                    Funballs();
-                    message = "Operation FUN activated.";
+                    if (spite)
+                    {
+                        Funballs();
+                        message = "Operation FUN activated.";
+                    } // if
+                    else
+                    {
+                        Roll(); // There's a world where funballs rolls infinitely and the program locks, yeah
+                        message = "";
+                    } // else
                     break;
                 case Effects.Gamble:
                     Gamble();
@@ -327,7 +336,7 @@ namespace WildMagic
                     break;
             } // switch
 
-            if (messagesEnabled)
+            if (messagesEnabled && message != "")
             {
                 Chat.SendBroadcastChat(new Chat.SimpleChatMessage
                 {
@@ -376,6 +385,15 @@ namespace WildMagic
         {
             this.color = color;
         } // SetColor
+
+        /// <summary>
+        /// Enables or disables the spite (Operation FUN) effect
+        /// </summary>
+        /// <param name="fun">yes fun or no fun</param>
+        public void SetFun(bool fun)
+        {
+            spite = fun;
+        } // SetFun
 
         // Changing of the guard
         public void SetMaster(CharacterMaster newMaster)
@@ -427,6 +445,7 @@ namespace WildMagic
                         component.teamIndex = TeamIndex.Monster;
                         component.inventory.GiveItem(ItemIndex.Hoof, 10);
                         component.inventory.GiveItem(ItemIndex.Syringe, 10);
+                        component.money = (uint)Run.instance.GetDifficultyScaledCost(1);
                         if (UnityEngine.Random.Range(0, 100) < 20)
                         {
                             switch (UnityEngine.Random.Range(0, 3))

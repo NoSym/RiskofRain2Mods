@@ -16,6 +16,7 @@ namespace WildMagic
         
         private bool started = false;
         private bool messagesEnabled = false;
+        private bool fun = true;
         private string rollChance = "medium";
         private List<MagicHandler> magicHandlers = new List<MagicHandler>();
        
@@ -24,6 +25,7 @@ namespace WildMagic
         {
             messagesEnabled = base.Config.Wrap<bool>("Settings", "MessagesEnabled", "If true each wild magic effect will display a chat message when it occurs.", true).Value;
             rollChance = base.Config.Wrap<string>("Settings", "RollChance", "Roll chance for a wild magic effect (low, medium, high).", "medium").Value;
+            fun = base.Config.Wrap<bool>("Settings", "SpiteEffect", "Whether or not the spite (Funballs, Operation FUN, etc.) effect will roll", true).Value;
 
             On.RoR2.Inventory.GetItemCount += (orig, self, index) =>
             {
@@ -64,6 +66,7 @@ namespace WildMagic
                             MagicHandler newHandler = new MagicHandler(PlayerCharacterMasterController.instances[i].master);
                             newHandler.EnableMessages(messagesEnabled);
                             newHandler.SetChance(rollChance);
+                            newHandler.SetFun(fun);
                             switch (i)
                             {
                                 case 0:
