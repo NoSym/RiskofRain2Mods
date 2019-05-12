@@ -77,30 +77,14 @@ namespace WildMagic
         private List<CharacterMaster> vagrantList = new List<CharacterMaster>();
 
         // Flags
-        private bool canRoll = true;
+        private bool canRoll = true; // For bossmode
+        private bool rollReady = true; // For rolls
+        private bool debuffed = false;
         private bool haunted = false;
         private bool messagesEnabled = false;
 
         // Arrays
         private DamageTrail[] trailArray = new DamageTrail[1]; // pointless atm
-
-        // Timers and temp vars
-        private float beetleTimer = -1; // Not the guards
-        private float beetleWaveCounter = 0;
-        private float bossTimer = -1;
-        private float dmgBuffTimer = -1;
-        private float dmgDebuff = 0;
-        private float dmgDebuffTimer = -1;
-        private float flightTimer = -1;
-        private float funballTimer = -1;
-        private float ghostTimer = -1;
-        private float hauntedTimer = -1;
-        private float moveBuffTimer = -1;
-        private float hideTimer = -1;
-        private float trailTimer = -1;
-        private float rollTimer = 0;
-        private float surgeTimer = -1;
-        private float tankTimer = -1;
 
         /// <summary>
         /// Creates a new wild magic controller for the specified character master.
@@ -116,7 +100,7 @@ namespace WildMagic
             // Yeah just lie about how many hooves you have sure
             On.RoR2.CharacterBody.RecalculateStats += (orig, self) =>
             {
-                if (master.GetBody().Equals(self))
+                if (master != null && master.GetBody() != null && master.GetBody().Equals(self))
                 {
                     master.inventory.GiveItem(ItemIndex.Hoof, fakeHooves);
                     orig(self);
@@ -133,32 +117,37 @@ namespace WildMagic
             {
                 if (master != null && self.Equals(master.GetBody()) && report.victimMaster != null && !report.victimMaster.Equals(master))
                 {
-                    if (rollTimer == 0 && canRoll)
+                    if (canRoll && rollReady)
                     {
                         victim = report.victimMaster;
 
-                        TankMode();
                         if (UnityEngine.Random.Range(0, rngCap) <= rollChance) // 0.5% chance to magic
                         {
                             Roll();
                         } // if
 
-                        rollTimer = 60; // 1 second cooldown on rolling
+                        rollReady = false;
+
+                        Timer.SetTimer(() =>
+                        {
+                            rollReady = true;
+                        }, 1);
                     } // if
                 } // if
 
                 orig(self, report);
             }; // DamageDealt
 
-            // For the timers
-            On.RoR2.Run.Update += (orig, self) =>
+            // Why not just do every single thing differently
+            On.RoR2.HealthComponent.TakeDamage += (orig, self, damager) =>
             {
-                orig(self);
-                if (master != null)
+                if (debuffed && damager.attacker.Equals(master.GetBody().gameObject))
                 {
-                    UpdateTimers();
+                    damager.damage /= 2;
                 } // if
-            }; // Update
+
+                orig(self, damager);
+            };
 
             // Spooky
             On.RoR2.GlobalEventManager.OnCharacterDeath += (orig, self, report) =>
@@ -402,166 +391,24 @@ namespace WildMagic
             fakeHooves = 0;
             rngCap = 200;
             canRoll = true;
+            rollReady = true;
             haunted = false;
-            beetleTimer = -1; // Not the guards
-            beetleWaveCounter = 0;
-            bossTimer = -1;
-            dmgBuffTimer = -1;
-            dmgDebuff = 0;
-            dmgDebuffTimer = -1;
-            flightTimer = -1;
-            funballTimer = -1;
-            ghostTimer = -1;
-            hauntedTimer = -1;
-            moveBuffTimer = -1;
-            hideTimer = -1;
-            trailTimer = -1;
-            rollTimer = 0;
-            surgeTimer = -1;
-            tankTimer = -1;
-    } // ResetTemps
-
-        private void UpdateTimers()
-        {
-            TickTimers();
-            ResolveTimers();
-        } // Update
-
-        // Could be cleaner!
-        private void ResolveTimers()
-        {
-            if (beetleTimer == 0)
-            {
-                if (beetleWaveCounter < beetleWaveMax)
-                {
-                    BeetleSquad();
-                    beetleTimer = 180; // 5 second intervals
-                    beetleWaveCounter++;
-                } // if
-                else
-                {
-                    beetleTimer = -1;
-                    beetleWaveCounter = 0;
-                }
-            } // beetleTimer
-
-            if (bossTimer == 0)
-            {
-                master.bodyPrefab = oldBody;
-                master.Respawn(master.GetBody().footPosition, master.GetBody().transform.rotation, true);
-                canRoll = true;
-                bossTimer = -1;
-            } // bossTimer
-
-            if (dmgBuffTimer == 0)
-            {
-                master.inventory.RemoveItem(ItemIndex.BoostDamage, 10);
-                dmgBuffTimer = -1;
-            } // dmgBuffTimer
-
-            if (dmgDebuffTimer == 0)
-            {
-                master.GetBody().baseDamage += dmgDebuff;
-                dmgDebuffTimer = -1;
-            } // dmgDebuffTimer
-
-            if (flightTimer == 0)
-            {
-                master.GetBody().baseJumpCount -= 1000;
-                master.GetBody().baseJumpPower -= 25;
-                master.GetBody().RecalculateStats();
-                flightTimer = -1;
-            } // flightTimer
-
-            if (funballTimer == 0)
-            {
-                Run.instance.enabledArtifacts.RemoveArtifact(ArtifactIndex.Bomb);
-                funballTimer = -1;
-            } // funballTimer
-
-            if (ghostTimer == 0)
-            {
-                master.inventory.RemoveItem(ItemIndex.Ghost, 1);
-                ghostTimer = -1;
-            } // ghostTimer
-
-            if (hauntedTimer == 0)
-            {
-                haunted = false;
-                hauntedTimer = -1;
-            } // hauntedTimer
-
-            if (hideTimer == 0)
-            {
-                master.GetBody().hideCrosshair = false;
-                hideTimer = -1;
-            } // hideTimer
-
-            if (moveBuffTimer == 0)
-            {
-                fakeHooves = 0;
-                master.GetBody().RecalculateStats();
-                moveBuffTimer = -1;
-            } // moveBuffTimer
-
-            if (surgeTimer == 0)
-            {
-                rngCap = 200;
-                surgeTimer = -1;
-            } // surgeTimer
-
-            if (tankTimer == 0)
-            {
-                master.inventory.RemoveItem(ItemIndex.BoostDamage, 5);
-                tankTimer = -1;
-            } // tankTimer
-
-            if (trailTimer == 0)
-            {
-                for (int i = 0; i < trailArray.Length; i++)
-                {
-                    UnityEngine.Object.Destroy(trailArray[i].gameObject);
-                    trailArray[i] = null;
-                } // for
-                trailTimer = -1;
-            } // trailTimer
-        } // Resolve Timers
-
-        // DeltaTime?
-        private void TickTimers()
-        {
-            if (beetleTimer > 0)
-                beetleTimer--;
-            if (bossTimer > 0)
-                bossTimer--;
-            if (dmgBuffTimer > 0)
-                dmgBuffTimer--;
-            if (dmgDebuffTimer > 0)
-                dmgDebuffTimer--;
-            if (moveBuffTimer > 0)
-                moveBuffTimer--;
-            if (flightTimer > 0)
-                flightTimer--;
-            if (funballTimer > 0)
-                funballTimer--;
-            if (ghostTimer > 0)
-                ghostTimer--;
-            if (hideTimer > 0)
-                hideTimer--;
-            if (hauntedTimer > 0)
-                hauntedTimer--;
-            if (rollTimer > 0)
-                rollTimer--;
-            if (surgeTimer > 0)
-                surgeTimer--;
-            if (tankTimer > 0)
-                tankTimer--;
-            if (trailTimer > 0)
-                trailTimer--;
-        } // TickTimers
+        } // ResetTemps
 
         // They comin
         private void BeetleSquad()
+        {
+            for (int i = 0; i < beetleWaveMax; i++)
+            {
+                Timer.SetTimer(() =>
+                {
+                    BeetleSquadHelper();
+                }, 5 * i);
+            } // for
+        } // BeetleSquad
+
+        // Does what it says it does
+        private void BeetleSquadHelper()
         {
             for (int i = 0; i < 10; i++)
             {
@@ -597,22 +444,26 @@ namespace WildMagic
                         } // if
                     } // if
                 } // if
-
-                beetleTimer = 180; // 3 second intervals
             } // for
-        } // BeetleSquad
+        } // BeetleSquadHelper
 
         // Spooky
         private void BeginHaunt()
         {
-            haunted = true;
-            hauntedTimer = 1200; // 20 seconds
+            if (!haunted)
+            {
+                haunted = true;
+                Timer.SetTimer(() =>
+                {
+                    haunted = false;
+                }, 20);
+            } // if
         } // BeginHaunt
 
         // I am become imp
         private void BossMode()
         {
-            if (bossTimer == -1)
+            if (canRoll)
             {
                 master.GetBody().AddTimedBuff(BuffIndex.Immune, 3f);
                 string[] bossPrefabs = { "ImpBossBody", "TitanBody", "ClayBossBody" };
@@ -622,41 +473,35 @@ namespace WildMagic
                 master.bodyPrefab = newBody;
                 master.Respawn(master.GetBody().footPosition, master.GetBody().transform.rotation, true);
                 canRoll = false; // Things could get weird if we use magic while Boss'd
-                bossTimer = 1800;// 30 seconds
+                Timer.SetTimer(() =>
+                {
+                    master.bodyPrefab = oldBody;
+                    master.Respawn(master.GetBody().footPosition, master.GetBody().transform.rotation, true);
+                    canRoll = true;
+                }, 30);
             } // if
-            else
-            {
-                bossTimer = 1800; // Should never happen but just in case
-            } // else
         } // BossMode
 
         // Yeehaw
         private void BuffDamage()
         {
-            if (dmgBuffTimer == -1)
+            master.inventory.GiveItem(ItemIndex.BoostDamage, 10);
+            Timer.SetTimer(() =>
             {
-                master.inventory.GiveItem(ItemIndex.BoostDamage, 10);
-                dmgBuffTimer = 900; // 15 seconds
-            } // if
-            else
-            {
-                dmgBuffTimer = 900;
-            }
+                master.inventory.RemoveItem(ItemIndex.BoostDamage, 10);
+            }, 15);
         } // BuffDamage
 
         // Go fast
         private void BuffMove()
         {
-            if (moveBuffTimer == -1)
+            fakeHooves += 7;
+            master.GetBody().RecalculateStats();
+            Timer.SetTimer(() =>
             {
-                fakeHooves = 7;
+                fakeHooves -= 7;
                 master.GetBody().RecalculateStats();
-                moveBuffTimer = 900; // 15 seconds
-            } // if
-            else
-            {
-                moveBuffTimer = 900;
-            } // else
+            }, 15);
         } // BuffMove
 
         // Hoorah
@@ -712,16 +557,12 @@ namespace WildMagic
         // 'Pardner
         private void DebuffDamage()
         {
-            if (dmgDebuffTimer == -1)
+            debuffed = true;
+            //master.GetBody().baseDamage -= 3;
+            Timer.SetTimer(() =>
             {
-                dmgDebuff = master.GetBody().baseDamage / 2;
-                master.GetBody().baseDamage -= dmgDebuff;
-                dmgDebuffTimer = 900; // 15 seconds
-            } // if
-            else
-            {
-                dmgDebuffTimer = 900;
-            } // else
+                debuffed = false;//master.GetBody().baseDamage += 3;
+            }, 15);
         } // DebuffDamage
 
         // Yowch
@@ -767,24 +608,24 @@ namespace WildMagic
         // Let it burn
         private void FireTrail()
         {
-            if (trailTimer == -1)
+            for (int i = 0; i < trailArray.Length; i++)
+            {
+                DamageTrail wildFire;
+                wildFire = UnityEngine.Object.Instantiate<GameObject>(Resources.Load<GameObject>("Prefabs/FireTrail"), master.GetBody().transform).GetComponent<DamageTrail>();
+                wildFire.transform.position = master.GetBody().footPosition;
+                wildFire.owner = master.GetBody().gameObject;
+                wildFire.radius *= master.GetBody().radius * 10;
+                wildFire.damagePerSecond *= master.GetBody().damage * 1.5f;
+                trailArray[i] = wildFire;
+            } // for
+            Timer.SetTimer(() =>
             {
                 for (int i = 0; i < trailArray.Length; i++)
                 {
-                    DamageTrail wildFire;
-                    wildFire = UnityEngine.Object.Instantiate<GameObject>(Resources.Load<GameObject>("Prefabs/FireTrail"), master.GetBody().transform).GetComponent<DamageTrail>();
-                    wildFire.transform.position = master.GetBody().footPosition;
-                    wildFire.owner = master.GetBody().gameObject;
-                    wildFire.radius *= master.GetBody().radius * 10;
-                    wildFire.damagePerSecond *= master.GetBody().damage * 1.5f;
-                    trailArray[i] = wildFire;
+                    UnityEngine.Object.Destroy(trailArray[i].gameObject);
+                    trailArray[i] = null;
                 } // for
-                trailTimer = 1800; // 30 seconds
-            } // if
-            else
-            {
-                trailTimer = 3600;
-            } // else
+            }, 30);
         } // FireTrail
 
         // Just activates the artifact
@@ -793,7 +634,10 @@ namespace WildMagic
             if (!Run.instance.enabledArtifacts.HasArtifact(ArtifactIndex.Bomb))
             {
                 Run.instance.enabledArtifacts.AddArtifact(ArtifactIndex.Bomb);
-                funballTimer = 3600; // 1 minute
+                Timer.SetTimer(() =>
+                {
+                    Run.instance.enabledArtifacts.RemoveArtifact(ArtifactIndex.Bomb);
+                }, 60);
             } // if
         } // Funballs
 
@@ -851,23 +695,22 @@ namespace WildMagic
         // Catch em all
         private void GoGhost()
         {
-            if (ghostTimer == -1)
+            ItemCatalog.GetItemDef(ItemIndex.Ghost).hidden = true;
+            master.inventory.GiveItem(ItemIndex.Ghost, 1);
+            Timer.SetTimer(() =>
             {
-                ItemCatalog.GetItemDef(ItemIndex.Ghost).hidden = true;
-                master.inventory.GiveItem(ItemIndex.Ghost, 1);
-                ghostTimer = 600; // 10 seconds
-            } // if
-            else
-            {
-                ghostTimer = 600;
-            } // else
+                master.inventory.RemoveItem(ItemIndex.Ghost, 1);
+            }, 10);
         } // GoGhost
 
         // Mildly inconvenient
         private void HideCrosshair()
         {
             master.GetBody().hideCrosshair = true;
-            hideTimer = 3600; // 1 minute
+            Timer.SetTimer(() =>
+            {
+                master.GetBody().hideCrosshair = false;
+            }, 60);
         } // HideCrosshair
 
         // Sorry
@@ -885,17 +728,15 @@ namespace WildMagic
         // References
         private void IcarianFlight()
         {
-            if (flightTimer == -1)
+            master.GetBody().baseJumpCount += 1000;
+            master.GetBody().baseJumpPower += 25;
+            master.GetBody().RecalculateStats();
+            Timer.SetTimer(() =>
             {
-                master.GetBody().baseJumpCount += 1000;
-                master.GetBody().baseJumpPower += 25;
+                master.GetBody().baseJumpCount -= 1000;
+                master.GetBody().baseJumpPower -= 25;
                 master.GetBody().RecalculateStats();
-                flightTimer = 1200; // 20 seconds
-            } // if
-            else
-            {
-                flightTimer = 1200;
-            } // else
+            }, 20);
         } // IcarianFlight
 
         // Instant death
@@ -1069,31 +910,27 @@ namespace WildMagic
         // Possibly a terrible situation
         private void TankMode()
         {
-            if (tankTimer == -1)
+            CharacterBody b = master.GetBody();
+            master.inventory.GiveItem(ItemIndex.BoostDamage, 5);
+            b.AddTimedBuff(BuffIndex.ArmorBoost, 10f);
+            b.AddTimedBuff(BuffIndex.ClayGoo, 10f);
+            Timer.SetTimer(() =>
             {
-                CharacterBody b = master.GetBody();
-                master.inventory.GiveItem(ItemIndex.BoostDamage, 5);
-                b.AddTimedBuff(BuffIndex.ArmorBoost, 10f);
-                b.AddTimedBuff(BuffIndex.ClayGoo, 10f);
-                tankTimer = 600; // 10 seconds
-            } // if
-            else
-            {
-                tankTimer = 600;
-            } // else
+                master.inventory.RemoveItem(ItemIndex.BoostDamage, 5);
+            }, 10);
         } // TankMode
 
+        // Infinite power
         private void WildSurge()
         {
-            if (surgeTimer == -1)
+            if (rngCap == 200)
             {
-                surgeTimer = 300;
                 rngCap = 0;
+                Timer.SetTimer(() =>
+                {
+                    rngCap = 200;
+                }, 5);
             } // if
-            else
-            {
-                surgeTimer = 300;
-            }
         } // WildSurge
     } // MagicHandler Class
 } // Wildmagic Namespace
