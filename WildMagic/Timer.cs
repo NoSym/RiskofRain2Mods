@@ -43,7 +43,7 @@ namespace WildMagic
         } // SetTimer
 
         /// <summary>
-        /// Call on a new run to reset everything.
+        /// Call on a new run, or any other time, to reset everything.
         /// </summary>
         public static void HardReset()
         {

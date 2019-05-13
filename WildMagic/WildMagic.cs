@@ -13,25 +13,59 @@ namespace WildMagic
     [BepInPlugin("com.NoSym.wildmagic", "WildMagic", "1.1.2")]
     public class WildMagic : BaseUnityPlugin
     { 
-        
-        private bool started = false;
+        // Preferences
         private bool messagesEnabled = false;
         private bool fun = true;
         private string rollChance = "medium";
+
         private List<MagicHandler> magicHandlers = new List<MagicHandler>();
        
         // Woke
         public void Awake()
         {
+            // Config Info
             messagesEnabled = base.Config.Wrap<bool>("Settings", "MessagesEnabled", "If true each wild magic effect will display a chat message when it occurs.", true).Value;
             rollChance = base.Config.Wrap<string>("Settings", "RollChance", "Roll chance for a wild magic effect (low, medium, high).", "medium").Value;
             fun = base.Config.Wrap<bool>("Settings", "SpiteEffect", "Whether or not the spite (Funballs, Operation FUN, etc.) effect will roll", true).Value;
 
-            On.RoR2.Inventory.GetItemCount += (orig, self, index) =>
+            // Begin Run and initialize junk
+            On.RoR2.Run.Start += (orig, self) =>
             {
-                Chat.AddMessage("GROSS!");
-                return orig(self, index);
-            };
+                orig(self);
+
+                int playerCount = PlayerCharacterMasterController.instances.Count;
+                Timer.HardReset();
+                for (int i = 0; i < playerCount; i++)
+                {
+                    if (i >= magicHandlers.Count)
+                    {
+                        MagicHandler newHandler = new MagicHandler(PlayerCharacterMasterController.instances[i].master);
+                        newHandler.EnableMessages(messagesEnabled);
+                        newHandler.SetChance(rollChance);
+                        newHandler.SetFun(fun);
+                        switch (i)
+                        {
+                            case 0:
+                                newHandler.SetColor("red");
+                                break;
+                            case 1:
+                                newHandler.SetColor("blue");
+                                break;
+                            case 2:
+                                newHandler.SetColor("yellow");
+                                break;
+                            case 3:
+                                newHandler.SetColor("green");
+                                break;
+                        } // switch
+                        magicHandlers.Add(newHandler);
+                    } // if
+                    else
+                    {
+                        magicHandlers[i].SetMaster(PlayerCharacterMasterController.instances[i].master);
+                    } // else
+                } // for
+            }; // 
         } // Awake
 
         // Note that this keeps the original ai, which is kinda funny since it's literally the previous enemy's brain in a new body
@@ -50,47 +84,6 @@ namespace WildMagic
             // Run actually started
             if (Run.instance != null && Run.instance.fixedTime >= 0)
             {
-                // Shenanigans for multiple runs in a session
-                if (Run.instance.fixedTime < 1 && started == true)
-                {
-                    started = false;
-                } // if
-                if (Run.instance.fixedTime >= 1 && !started)
-                {
-                    int playerCount = PlayerCharacterMasterController.instances.Count;
-                    Timer.HardReset();
-                    for (int i = 0; i < playerCount; i++)
-                    {
-                        if (i >= magicHandlers.Count)
-                        {
-                            MagicHandler newHandler = new MagicHandler(PlayerCharacterMasterController.instances[i].master);
-                            newHandler.EnableMessages(messagesEnabled);
-                            newHandler.SetChance(rollChance);
-                            newHandler.SetFun(fun);
-                            switch (i)
-                            {
-                                case 0:
-                                    newHandler.SetColor("red");
-                                    break;
-                                case 1:
-                                    newHandler.SetColor("blue");
-                                    break;
-                                case 2:
-                                    newHandler.SetColor("yellow");
-                                    break;
-                                case 3:
-                                    newHandler.SetColor("green");
-                                    break;
-                            } // switch
-                            magicHandlers.Add(newHandler);
-                        } // if
-                        else
-                        {
-                            magicHandlers[i].SetMaster(PlayerCharacterMasterController.instances[i].master);
-                        } // else
-                    }
-                    started = true;
-                } // if
                 // Debugging Key
                 if (Input.GetKeyDown(KeyCode.F2))
                 {
