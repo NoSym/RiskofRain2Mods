@@ -67,6 +67,9 @@ namespace WildMagic
         // Janky move speed buff
         int fakeHooves = 0;
 
+        // Casper
+        private int hauntCounter = 0;
+
         // Ha
         private string goofName = "";
 
@@ -80,7 +83,6 @@ namespace WildMagic
         private bool canRoll = true; // For bossmode
         private bool rollReady = true; // For rolls
         private bool debuffed = false;
-        private bool haunted = false;
         private bool messagesEnabled = true;
         private bool spite = true;
 
@@ -122,7 +124,7 @@ namespace WildMagic
                     {
                         victim = report.victimMaster;
 
-                        if (UnityEngine.Random.Range(0, rngCap) <= rollChance) // 0.5% chance to magic
+                        if (UnityEngine.Random.Range(0, rngCap) <= rollChance) // 0.5% chance to magic by default
                         {
                             Roll();
                         } // if
@@ -156,10 +158,11 @@ namespace WildMagic
                 if (master != null)
                 {
                     // Ghosts
-                    if (haunted && report.damageInfo.attacker.Equals(master.GetBody().gameObject))
+                    if (hauntCounter > 0 && report.damageInfo.attacker.Equals(master.GetBody().gameObject))
                     {
                         CharacterBody ghost = Util.TryToCreateGhost(report.victimBody, report.victimBody, 20);
                         ghost.baseDamage /= 6.0f; // I mean seriously, 500%?
+                        hauntCounter--;
                     } // if
 
                     // Big jellyfish
@@ -211,7 +214,7 @@ namespace WildMagic
                     break;
                 case Effects.BeginHaunt:
                     BeginHaunt();
-                    message = "Souls of the slain return for vengeance.";
+                    message = "Vengeful spirits rise to haunt you!";
                     break;
                 case Effects.BossMode:
                     BossMode();
@@ -407,10 +410,10 @@ namespace WildMagic
         {
             vagrantList = new List<CharacterMaster>();
             fakeHooves = 0;
+            hauntCounter = 0;
             rngCap = 200;
             canRoll = true;
             rollReady = true;
-            haunted = false;
         } // ResetTemps
 
         // They comin
@@ -469,14 +472,7 @@ namespace WildMagic
         // Spooky
         private void BeginHaunt()
         {
-            if (!haunted)
-            {
-                haunted = true;
-                Timer.SetTimer(() =>
-                {
-                    haunted = false;
-                }, 20);
-            } // if
+            hauntCounter = 5;
         } // BeginHaunt
 
         // I am become imp
@@ -803,6 +799,8 @@ namespace WildMagic
         {
             master.GetBody().AddTimedBuff(BuffIndex.Immune, 3f);
             string[] survivorPrefabs = { "CommandoBody", "ToolbotBody", "HuntressBody", "EngiBody", "MageBody", "MercBody" };
+            if (SurvivorCatalog.FindSurvivorDefFromBody(BodyCatalog.FindBodyPrefab("BanditBody")) != null)
+                survivorPrefabs = new string[] { "CommandoBody", "ToolbotBody", "HuntressBody", "EngiBody", "MageBody", "MercBody", "BanditBody" };
             string newSurvivor = survivorPrefabs[UnityEngine.Random.Range(0, survivorPrefabs.Length)];
             GameObject newBody = BodyCatalog.FindBodyPrefab(newSurvivor);
             master.bodyPrefab = newBody;
@@ -944,11 +942,14 @@ namespace WildMagic
         {
             if (rngCap == 200)
             {
-                rngCap = 0;
                 Timer.SetTimer(() =>
                 {
-                    rngCap = 200;
-                }, 5);
+                    rngCap = 0;
+                    Timer.SetTimer(() =>
+                    {
+                        rngCap = 200;
+                    }, 5); // 5 second duration
+                }, 3); // 3 second delay
             } // if
         } // WildSurge
     } // MagicHandler Class

@@ -65,7 +65,7 @@ namespace WildMagic
                         magicHandlers[i].SetMaster(PlayerCharacterMasterController.instances[i].master);
                     } // else
                 } // for
-            }; // 
+            }; // Run.Start
         } // Awake
 
         // Note that this keeps the original ai, which is kinda funny since it's literally the previous enemy's brain in a new body
