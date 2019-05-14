@@ -1,37 +1,40 @@
 ﻿using System;
 using System.Collections.Generic;
-using BepInEx;
 using RoR2;
-using RoR2.CharacterAI;
-using UnityEngine;
-using UnityEngine.Networking;
 
-namespace WildMagic
+namespace GoldShield
 {
     /// <summary>
-    /// Basic implementation of timer functionality for WildMagic.
+    /// Basic implementation of timer functionality.
     /// </summary>
     public static class Timer
     {
         private static List<Action> functions = new List<Action>();
-        private static List<int> delays = new List<int>();
+        private static List<float> delays = new List<float>();
         private static bool runHook = false;
 
         /// <summary>
-        /// Starts a timer that will execute func after delay seconds.
+        /// Starts a timer that will execute func after delay in-game seconds.
         /// </summary>
         /// <param name="func">Method to be executed</param>
         /// <param name="delay">Duration, in seconds, to wait before executing func</param>
         public static void SetTimer(Action func, int delay)
         {
-            // Check for a paired run instance
-            if(!runHook)
+            // Hook into run methods
+            if (!runHook)
             {
                 On.RoR2.Run.Update += (orig, self) =>
                 {
                     orig(self);
                     TickTimers();
                 }; // Update
+
+                On.RoR2.Run.Start += (orig, self) =>
+                {
+                    orig(self);
+                    HardReset();
+                }; // Start
+
                 runHook = true;
             } // if
 
@@ -39,35 +42,28 @@ namespace WildMagic
                 delay = 0;
 
             functions.Add(func);
-            delays.Add(delay * 60);
+            delays.Add(Run.instance.fixedTime + delay);
         } // SetTimer
 
-        /// <summary>
-        /// Call on a new run, or any other time, to reset everything.
-        /// </summary>
-        public static void HardReset()
+        // Square 1
+        private static void HardReset()
         {
             functions = new List<Action>();
-            delays = new List<int>();
-            runHook = false;
-    } // CancelTimers
+            delays = new List<float>();
+        } // CancelTimers
 
-        // Once per frame
+        // Less of a tick more of a check
         private static void TickTimers()
         {
-            for(int i = 0; i < delays.Count; i++)
+            for (int i = 0; i < delays.Count; i++)
             {
-                if (delays[i] > 0)
-                {
-                    delays[i]--;
-                } // if
-                else
+                if (Run.instance.fixedTime >= delays[i])
                 {
                     functions[i]();
                     delays.RemoveAt(i);
                     functions.RemoveAt(i);
                     i--;
-                } // else
+                } // if
             } // for
         } // TickTimers
     } // Timer class

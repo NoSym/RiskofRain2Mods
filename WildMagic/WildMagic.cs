@@ -34,7 +34,7 @@ namespace WildMagic
                 orig(self);
 
                 int playerCount = PlayerCharacterMasterController.instances.Count;
-                Timer.HardReset();
+
                 for (int i = 0; i < playerCount; i++)
                 {
                     if (i >= magicHandlers.Count)
