@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using RoR2;
 
-namespace GoldShield
+namespace WildMagic
 {
     /// <summary>
     /// Basic implementation of timer functionality.
