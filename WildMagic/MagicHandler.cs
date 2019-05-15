@@ -61,6 +61,8 @@ namespace WildMagic
         // :)
         private List<ScoreboardStrip> stripList = new List<ScoreboardStrip>();
 
+        private List<CharacterBody> charmedList = new List<CharacterBody>();
+
         // proc chance = rollChance * 0.5 + 0.5
         private int rollChance = 0;
         private int rngCap = 200;
@@ -86,9 +88,6 @@ namespace WildMagic
         private bool debuffed = false;
         private bool messagesEnabled = true;
         private bool spite = true;
-
-        // Arrays
-        private DamageTrail[] trailArray = new DamageTrail[1]; // pointless atm
 
         /// <summary>
         /// Creates a new wild magic controller for the specified character master.
@@ -124,7 +123,7 @@ namespace WildMagic
                     if (canRoll && rollReady)
                     {
                         victim = report.victimMaster;
-
+                        HideCrosshair();
                         if (UnityEngine.Random.Range(0, rngCap) <= rollChance) // 0.5% chance to magic by default
                         {
                             Roll();
@@ -163,6 +162,7 @@ namespace WildMagic
                     {
                         CharacterBody ghost = Util.TryToCreateGhost(report.victimBody, report.victimBody, 20);
                         ghost.baseDamage /= 6.0f; // I mean seriously, 500%?
+                        ghost.RecalculateStats();
                         hauntCounter--;
                     } // if
 
@@ -205,6 +205,17 @@ namespace WildMagic
                 if (!stripList.Contains(self))
                     stripList.Add(self);
                 orig(self, newMaster);
+            };
+
+            // Make player invisible to charmed enemies to drop aggro
+            On.RoR2.CharacterBody.GetVisibilityLevel += (orig, self, body) =>
+            {
+                // If you need to charm a LOT of enemies remove this loop for efficiency, probably
+                for (int i = 0; i < charmedList.Count; i++)
+                    if (self.Equals(master.GetBody()) && body.Equals(charmedList[i]))
+                        return VisibilityLevel.Invisible;
+
+                return orig(self, body);
             };
         } // MagicHandler Constructor
 
@@ -290,8 +301,16 @@ namespace WildMagic
                     message = "Welcome to the Astral Plane.";
                     break;
                 case Effects.HideCrosshair:
-                    HideCrosshair();
-                    message = "Have you got something in your eye?";
+                    if (color == "red")
+                    {
+                        HideCrosshair(); // This one only works for hosts so just reroll if a client gets it
+                        message = "Have you got something in your eye?";
+                    } // if
+                    else
+                    {
+                        Roll();
+                        message = "";
+                    } // else
                     break;
                 case Effects.HalveMoney:
                     HalveMoney();
@@ -582,8 +601,10 @@ namespace WildMagic
             if (victim != null)
             {
                 victim.GetBody().teamComponent.teamIndex = TeamIndex.Player;
+                victim.teamIndex = TeamIndex.Player;
                 victim.inventory.GiveItem(ItemIndex.BoostDamage, 30);
                 victim.inventory.GiveItem(ItemIndex.HealthDecay, 30);
+                charmedList.Add(victim.GetBody());
             } // if
         } // Charm
 
@@ -641,24 +662,7 @@ namespace WildMagic
         // Let it burn
         private void FireTrail()
         {
-            for (int i = 0; i < trailArray.Length; i++)
-            {
-                DamageTrail wildFire;
-                wildFire = UnityEngine.Object.Instantiate<GameObject>(Resources.Load<GameObject>("Prefabs/FireTrail"), master.GetBody().transform).GetComponent<DamageTrail>();
-                wildFire.transform.position = master.GetBody().footPosition;
-                wildFire.owner = master.GetBody().gameObject;
-                wildFire.radius *= master.GetBody().radius * 10;
-                wildFire.damagePerSecond *= master.GetBody().damage * 1.5f;
-                trailArray[i] = wildFire;
-            } // for
-            Timer.SetTimer(() =>
-            {
-                for (int i = 0; i < trailArray.Length; i++)
-                {
-                    UnityEngine.Object.Destroy(trailArray[i].gameObject);
-                    trailArray[i] = null;
-                } // for
-            }, 30);
+            master.GetBody().AddTimedBuff(BuffIndex.AffixRed, 10);
         } // FireTrail
 
         // Just activates the artifact
