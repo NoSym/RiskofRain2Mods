@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using BepInEx;
+using RoR2.UI;
 using RoR2;
 using RoR2.CharacterAI;
 using UnityEngine;
@@ -57,6 +58,9 @@ namespace WildMagic
         // Probably a bad idea
         private CharacterMaster victim;
 
+        // :)
+        private List<ScoreboardStrip> stripList = new List<ScoreboardStrip>();
+
         // proc chance = rollChance * 0.5 + 0.5
         private int rollChance = 0;
         private int rngCap = 200;
@@ -69,9 +73,6 @@ namespace WildMagic
 
         // Casper
         private int hauntCounter = 0;
-
-        // Ha
-        private string goofName = "";
 
         // For the horde
         private int beetleWaveMax = 5;
@@ -197,6 +198,14 @@ namespace WildMagic
 
                 orig(self, report);
             }; // CharacterDeath
+
+            // Keep track of scoreboard instance
+            On.RoR2.UI.ScoreboardStrip.SetMaster += (orig, self, newMaster) =>
+            {
+                if (!stripList.Contains(self))
+                    stripList.Add(self);
+                orig(self, newMaster);
+            };
         } // MagicHandler Constructor
 
         /// <summary>
@@ -356,6 +365,15 @@ namespace WildMagic
         {
             messagesEnabled = flag;
         } // EnableMessages
+
+        /// <summary>
+        /// Returns Scoreboard Strips
+        /// </summary>
+        /// <returns></returns>
+        public List<ScoreboardStrip> GetStrips()
+        {
+            return stripList;
+        } // GetStrips
 
         /// <summary>
         /// Effect proc chance
@@ -870,15 +888,29 @@ namespace WildMagic
         // Give em a new nick
         private void RuinName()
         {
+            string currName = master.GetComponent<PlayerCharacterMasterController>().GetDisplayName();
             string[] goofNames = { "Commando", "Acrid", "Providence", "Jack-o-Lantern Dwyer", "Lucille Bluth", "Stone Titan",
                 "Leslie Knope", "Andy Dwyer", "April Ludgate", "Ben Wyatt", "Ann Perkins", "Chris Traeger", "Ron Swanson", "Michael Scott",
-                "Jim from The Office", "Rainn Wilson", "Robert 'The Lizard King' California", "Enforcer", "Sniper", "No One"};
+                "Jim from The Office", "Rainn Wilson", "Robert 'The Lizard King' California", "Enforcer", "Sniper", "No One", "UES Contact Light",
+                "Lemurian", "Bandit", "Miner", "Loader", "Chef", "HAN-D", "Huntress", "Artificer", "MUL-T", "Mercenary", "Imp Overlord",
+                "Cremator", currName + ", Ancient Lava Swimmer", "Not " + currName, "Dean Pelton", "Action Jack Barker", "Liz Lemon",
+                "Eleanor Shellstrop", "Danny DeVito", "Beetle Guard", "Gunner Drone", "Matt LeBlanc", "Scarlett Johansson", "Ron Dunn",
+                currName + ", Lord of Cinder", currName + " the Great", "High King " + currName, currName + " the Expendable", "Engineer"};
 
-            goofName = goofNames[UnityEngine.Random.Range(0, goofNames.Length)];
+            string goofName = goofNames[UnityEngine.Random.Range(0, goofNames.Length)];
             PlayerCharacterMasterController controller = master.GetComponent<PlayerCharacterMasterController>();
 
-            if (controller && controller.networkUserObject && controller.networkUserObject.GetComponent<NetworkUser>())
-                controller.networkUserObject.GetComponent<NetworkUser>().userName = goofName;
+            // Set the goof
+            if (controller && controller.networkUser)
+            {
+                controller.networkUser.userName = goofName;
+            } // if
+
+            // Update scoreboard names
+            for (int i = 0; i < stripList.Count; i++)
+            {
+                stripList[i].nameLabel.text = PlayerCharacterMasterController.instances[i].networkUser.userName;
+            } // for
         } // void
 
         // A Friend
