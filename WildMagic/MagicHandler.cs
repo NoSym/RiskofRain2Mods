@@ -70,9 +70,6 @@ namespace WildMagic
         // Clarity
         string color = "red";
 
-        // Janky move speed buff
-        int fakeHooves = 0;
-
         // Casper
         private int hauntCounter = 0;
 
@@ -100,21 +97,6 @@ namespace WildMagic
             // Incompatibility with mods that want to show you this placeholder icon, I guess
             ItemCatalog.GetItemDef(ItemIndex.BoostDamage).hidden = true;
 
-            // Yeah just lie about how many hooves you have sure
-            On.RoR2.CharacterBody.RecalculateStats += (orig, self) =>
-            {
-                if (master != null && master.GetBody() != null && master.GetBody().Equals(self))
-                {
-                    master.inventory.GiveItem(ItemIndex.Hoof, fakeHooves);
-                    orig(self);
-                    master.inventory.RemoveItem(ItemIndex.Hoof, fakeHooves);
-                } // if
-                else
-                {
-                    orig(self);
-                } // else
-            }; // RecalculateStats
-
             // Magic Proc
             On.RoR2.CharacterBody.OnDamageDealt += (orig, self, report) =>
             {
@@ -123,7 +105,7 @@ namespace WildMagic
                     if (canRoll && rollReady)
                     {
                         victim = report.victimMaster;
-                        HideCrosshair();
+
                         if (UnityEngine.Random.Range(0, rngCap) <= rollChance) // 0.5% chance to magic by default
                         {
                             Roll();
@@ -321,8 +303,16 @@ namespace WildMagic
                     message = "HOT!";
                     break;
                 case Effects.IcarianFlight:
-                    IcarianFlight();
-                    message = "Icarian Flight!";
+                    if (color == "red")
+                    {
+                        IcarianFlight(); // Only works for host but it's hilarious so I'm leaving it
+                        message = "Icarian Flight!";
+                    } // if
+                    else
+                    {
+                        Roll();
+                        message = "";
+                    } // else
                     break;
                 case Effects.Instakill:
                     Instakill();
@@ -446,7 +436,6 @@ namespace WildMagic
         private void ResetTemps()
         {
             vagrantList = new List<CharacterMaster>();
-            fakeHooves = 0;
             hauntCounter = 0;
             rngCap = 200;
             canRoll = true;
@@ -547,13 +536,8 @@ namespace WildMagic
         // Go fast
         private void BuffMove()
         {
-            fakeHooves += 7;
-            master.GetBody().RecalculateStats();
-            Timer.SetTimer(() =>
-            {
-                fakeHooves -= 7;
-                master.GetBody().RecalculateStats();
-            }, 15);
+            master.GetBody().AddTimedBuff(BuffIndex.CloakSpeed, 10);
+            master.GetBody().AddTimedBuff(BuffIndex.TempestSpeed, 10); // Unused buff, could change in an update
         } // BuffMove
 
         // Hoorah
@@ -765,15 +749,15 @@ namespace WildMagic
         // References
         private void IcarianFlight()
         {
-            master.GetBody().baseJumpCount += 1000;
-            master.GetBody().baseJumpPower += 25;
-            master.GetBody().RecalculateStats();
+            master.GetBody().characterMotor.velocity.y = 100;
             Timer.SetTimer(() =>
             {
-                master.GetBody().baseJumpCount -= 1000;
-                master.GetBody().baseJumpPower -= 25;
-                master.GetBody().RecalculateStats();
-            }, 20);
+                master.inventory.GiveItem(ItemIndex.Feather, 3);
+                Timer.SetTimer(() =>
+                {
+                    master.inventory.RemoveItem(ItemIndex.Feather, 3);
+                }, 4);
+            }, 3);
         } // IcarianFlight
 
         // Instant death

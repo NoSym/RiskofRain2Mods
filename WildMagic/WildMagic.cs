@@ -10,7 +10,7 @@ using UnityEngine.Networking;
 namespace WildMagic
 {
     [BepInDependency("com.bepis.r2api")]
-    [BepInPlugin("com.NoSym.wildmagic", "WildMagic", "1.1.3")]
+    [BepInPlugin("com.NoSym.wildmagic", "WildMagic", "1.1.4")]
     public class WildMagic : BaseUnityPlugin
     { 
         // Preferences
