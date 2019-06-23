@@ -105,7 +105,7 @@ namespace WildMagic
                     if (canRoll && rollReady)
                     {
                         victim = report.victimMaster;
-
+                        
                         if (UnityEngine.Random.Range(0, rngCap) <= rollChance) // 0.5% chance to magic by default
                         {
                             Roll();
@@ -587,8 +587,15 @@ namespace WildMagic
                 victim.GetBody().teamComponent.teamIndex = TeamIndex.Player;
                 victim.teamIndex = TeamIndex.Player;
                 victim.inventory.GiveItem(ItemIndex.BoostDamage, 30);
-                victim.inventory.GiveItem(ItemIndex.HealthDecay, 30);
                 charmedList.Add(victim.GetBody());
+
+                // Swapped out health decay for this to fix TP boss softlocking
+                Timer.SetTimer(() =>
+                {
+                    CharacterBody charmedGuy = charmedList[0];
+                    charmedList.RemoveAt(0);
+                    charmedGuy.healthComponent.Suicide(master.gameObject);
+                }, 30);
             } // if
         } // Charm
 
@@ -764,7 +771,7 @@ namespace WildMagic
         private void Instakill()
         {
             if(victim != null)
-                victim.GetBody().healthComponent.Suicide();
+                victim.GetBody().healthComponent.Suicide(master.gameObject);
         } // Instakill
 
         // 1 meteor wave
