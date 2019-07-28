@@ -10,7 +10,7 @@ using UnityEngine.Networking;
 namespace WildMagic
 {
     [BepInDependency("com.bepis.r2api")]
-    [BepInPlugin("com.NoSym.wildmagic", "WildMagic", "1.1.6")]
+    [BepInPlugin("com.NoSym.wildmagic", "WildMagic", "1.1.7")]
     public class WildMagic : BaseUnityPlugin
     { 
         // Preferences
@@ -58,7 +58,6 @@ namespace WildMagic
                                 break;
                         } // switch
                         magicHandlers.Add(newHandler);
-                        Chat.AddMessage(magicHandlers.Count+"first");
                     } // if
                     else
                     {
@@ -87,7 +86,7 @@ namespace WildMagic
                 // Debugging Key
                 if (Input.GetKeyDown(KeyCode.F2))
                 {
-                    
+
                 } // if
             } // if
         } // Update

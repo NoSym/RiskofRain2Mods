@@ -127,11 +127,13 @@ namespace WildMagic
             // New Magic Proc
             On.RoR2.GlobalEventManager.OnHitEnemy += (orig, self, report, victim) =>
             {
-                if (master != null && self.Equals(master.GetBody()) && victim.GetComponent<CharacterMaster>() != null && !victim.GetComponent<CharacterMaster>().Equals(master))
+                CharacterMaster victimMaster = victim.GetComponent<CharacterBody>().master;
+
+                if (master != null && report.attacker.GetComponent<CharacterBody>().Equals(master.GetBody()) && victimMaster != null && !victimMaster.Equals(master))
                 {
                     if (canRoll && rollReady)
                     {
-                        this.victim = victim.GetComponent<CharacterMaster>();
+                        this.victim = victimMaster;
 
                         if (UnityEngine.Random.Range(0, rngCap) <= rollChance) // 0.5% chance to magic by default
                         {
