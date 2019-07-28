@@ -94,18 +94,45 @@ namespace WildMagic
         {
             master = magicMaster;
 
-            // Incompatibility with mods that want to show you this placeholder icon, I guess
+            // Incompatibility with mods that want to show you these placeholder icon, I guess
             ItemCatalog.GetItemDef(ItemIndex.BoostDamage).hidden = true;
+            BuffCatalog.GetBuffDef(BuffIndex.EnrageAncientWisp).iconPath = BuffCatalog.GetBuffDef(BuffIndex.CloakSpeed).iconPath;
 
-            // Magic Proc
-            On.RoR2.CharacterBody.OnDamageDealt += (orig, self, report) =>
+            // Magic Proc (Deprecated?)
+            //On.RoR2.CharacterBody.OnDamageDealt += (orig, self, report) =>
+            //{
+            //    if (master != null && self.Equals(master.GetBody()) && report.victimMaster != null && !report.victimMaster.Equals(master))
+            //    {
+            //        if (canRoll && rollReady)
+            //        {
+            //            victim = report.victimMaster;
+
+            //            if (UnityEngine.Random.Range(0, rngCap) <= rollChance) // 0.5% chance to magic by default
+            //            {
+            //                Roll();
+            //            } // if
+
+            //            rollReady = false;
+
+            //            Timer.SetTimer(() =>
+            //            {
+            //                rollReady = true;
+            //            }, 1);
+            //        } // if
+            //    } // if
+
+            //    orig(self, report);
+            //}; // DamageDealt
+
+            // New Magic Proc
+            On.RoR2.GlobalEventManager.OnHitEnemy += (orig, self, report, victim) =>
             {
-                if (master != null && self.Equals(master.GetBody()) && report.victimMaster != null && !report.victimMaster.Equals(master))
+                if (master != null && self.Equals(master.GetBody()) && victim.GetComponent<CharacterMaster>() != null && !victim.GetComponent<CharacterMaster>().Equals(master))
                 {
                     if (canRoll && rollReady)
                     {
-                        victim = report.victimMaster;
-                        
+                        this.victim = victim.GetComponent<CharacterMaster>();
+
                         if (UnityEngine.Random.Range(0, rngCap) <= rollChance) // 0.5% chance to magic by default
                         {
                             Roll();
@@ -120,9 +147,9 @@ namespace WildMagic
                     } // if
                 } // if
 
-                orig(self, report);
-            }; // DamageDealt
-
+                orig(self, report, victim);
+            }; // OnHitEnemy
+            
             // Why not just do every single thing differently
             On.RoR2.HealthComponent.TakeDamage += (orig, self, damager) =>
             {
@@ -132,8 +159,8 @@ namespace WildMagic
                 } // if
 
                 orig(self, damager);
-            };
-
+            }; // TakeDamage
+            
             // Spooky
             On.RoR2.GlobalEventManager.OnCharacterDeath += (orig, self, report) =>
             {
@@ -155,13 +182,20 @@ namespace WildMagic
                         {
                             for (int j = 0; j < 20; j++)
                             {
-                                GameObject gameObject = DirectorCore.instance.TrySpawnObject((SpawnCard)Resources.Load("SpawnCards/CharacterSpawnCards/cscJellyfish"), new DirectorPlacementRule
+                                SpawnCard spawnCard = (SpawnCard)Resources.Load("SpawnCards/CharacterSpawnCards/cscJellyfish");
+                                DirectorPlacementRule rule = new DirectorPlacementRule
                                 {
                                     placementMode = DirectorPlacementRule.PlacementMode.Approximate,
                                     minDistance = 3f,
-                                    maxDistance = 25f,
-                                    spawnOnTarget = report.victimBody.transform
-                                }, RoR2Application.rng);
+                                    maxDistance = 40f,
+                                    spawnOnTarget = master.GetBody().transform
+                                };
+
+                                DirectorSpawnRequest request = new DirectorSpawnRequest(spawnCard, rule, RoR2Application.rng);
+                                request.teamIndexOverride = TeamIndex.Monster;
+                                request.ignoreTeamMemberLimit = true;
+
+                                GameObject gameObject = DirectorCore.instance.TrySpawnObject(request);
                                 if (gameObject)
                                 {
                                     CharacterMaster component = gameObject.GetComponent<CharacterMaster>();
@@ -180,15 +214,15 @@ namespace WildMagic
 
                 orig(self, report);
             }; // CharacterDeath
-
+            
             // Keep track of scoreboard instance
             On.RoR2.UI.ScoreboardStrip.SetMaster += (orig, self, newMaster) =>
             {
                 if (!stripList.Contains(self))
                     stripList.Add(self);
                 orig(self, newMaster);
-            };
-
+            }; // SetMaster
+            
             // Make player invisible to charmed enemies to drop aggro
             On.RoR2.CharacterBody.GetVisibilityLevel += (orig, self, body) =>
             {
@@ -198,7 +232,8 @@ namespace WildMagic
                         return VisibilityLevel.Invisible;
 
                 return orig(self, body);
-            };
+            }; // GetVisibilityLevel
+            
         } // MagicHandler Constructor
 
         /// <summary>
@@ -459,13 +494,20 @@ namespace WildMagic
         {
             for (int i = 0; i < 10; i++)
             {
-                GameObject gameObject = DirectorCore.instance.TrySpawnObject((SpawnCard)Resources.Load("SpawnCards/CharacterSpawnCards/cscBeetle"), new DirectorPlacementRule
+                SpawnCard spawnCard = (SpawnCard)Resources.Load("SpawnCards/CharacterSpawnCards/cscBeetle");
+                DirectorPlacementRule rule = new DirectorPlacementRule
                 {
                     placementMode = DirectorPlacementRule.PlacementMode.Approximate,
-                    minDistance = 10f,
-                    maxDistance = 30f,
+                    minDistance = 3f,
+                    maxDistance = 40f,
                     spawnOnTarget = master.GetBody().transform
-                }, RoR2Application.rng);
+                };
+
+                DirectorSpawnRequest request = new DirectorSpawnRequest(spawnCard, rule, RoR2Application.rng);
+                request.teamIndexOverride = TeamIndex.Monster;
+                request.ignoreTeamMemberLimit = true;
+
+                GameObject gameObject = DirectorCore.instance.TrySpawnObject(request);
                 if (gameObject)
                 {
                     CharacterMaster component = gameObject.GetComponent<CharacterMaster>();
@@ -507,7 +549,7 @@ namespace WildMagic
             if (canRoll)
             {
                 master.GetBody().AddTimedBuff(BuffIndex.Immune, 3f);
-                string[] bossPrefabs = { "ImpBossBody", "TitanBody", "ClayBossBody" };
+                string[] bossPrefabs = { "ImpBossBody", "TitanBody", "ClayBossBody", "GravekeeperBody" };
                 string boss = bossPrefabs[UnityEngine.Random.Range(0, bossPrefabs.Length)];
                 GameObject newBody = BodyCatalog.FindBodyPrefab(boss);
                 oldBody = master.bodyPrefab;
@@ -537,7 +579,7 @@ namespace WildMagic
         private void BuffMove()
         {
             master.GetBody().AddTimedBuff(BuffIndex.CloakSpeed, 10);
-            master.GetBody().AddTimedBuff(BuffIndex.TempestSpeed, 10); // Unused buff, could change in an update
+            master.GetBody().AddTimedBuff(BuffIndex.EnrageAncientWisp, 10); // Unused buff, could change in an update
         } // BuffMove
 
         // Hoorah
@@ -786,13 +828,20 @@ namespace WildMagic
         // Biggun
         private void MotherVagrant()
         {
-            GameObject gameObject = DirectorCore.instance.TrySpawnObject((SpawnCard)Resources.Load("SpawnCards/CharacterSpawnCards/cscVagrant"), new DirectorPlacementRule
+            SpawnCard spawnCard = (SpawnCard)Resources.Load("SpawnCards/CharacterSpawnCards/cscVagrant");
+            DirectorPlacementRule rule = new DirectorPlacementRule
             {
                 placementMode = DirectorPlacementRule.PlacementMode.Approximate,
-                minDistance = 10f,
-                maxDistance = 30f,
+                minDistance = 3f,
+                maxDistance = 40f,
                 spawnOnTarget = master.GetBody().transform
-            }, RoR2Application.rng);
+            };
+
+            DirectorSpawnRequest request = new DirectorSpawnRequest(spawnCard, rule, RoR2Application.rng);
+            request.teamIndexOverride = TeamIndex.Monster;
+            request.ignoreTeamMemberLimit = true;
+
+            GameObject gameObject = DirectorCore.instance.TrySpawnObject(request);
             if (gameObject)
             {
                 CharacterMaster component = gameObject.GetComponent<CharacterMaster>();
@@ -811,9 +860,9 @@ namespace WildMagic
         private void RandomizeSurvivor()
         {
             master.GetBody().AddTimedBuff(BuffIndex.Immune, 3f);
-            string[] survivorPrefabs = { "CommandoBody", "ToolbotBody", "HuntressBody", "EngiBody", "MageBody", "MercBody" };
+            string[] survivorPrefabs = { "CommandoBody", "ToolbotBody", "HuntressBody", "EngiBody", "MageBody", "MercBody", "TreebotBody" };
             if (SurvivorCatalog.FindSurvivorDefFromBody(BodyCatalog.FindBodyPrefab("BanditBody")) != null)
-                survivorPrefabs = new string[] { "CommandoBody", "ToolbotBody", "HuntressBody", "EngiBody", "MageBody", "MercBody", "BanditBody" };
+                survivorPrefabs = new string[] { "CommandoBody", "ToolbotBody", "HuntressBody", "EngiBody", "MageBody", "MercBody", "TreebotBody", "BanditBody" };
             string newSurvivor = survivorPrefabs[UnityEngine.Random.Range(0, survivorPrefabs.Length)];
             GameObject newBody = BodyCatalog.FindBodyPrefab(newSurvivor);
             master.bodyPrefab = newBody;
@@ -911,13 +960,20 @@ namespace WildMagic
         // A Friend
         private void SpawnBeetleGuard()
         {
-            GameObject gameObject = DirectorCore.instance.TrySpawnObject((SpawnCard)Resources.Load("SpawnCards/CharacterSpawnCards/cscBeetleGuardAlly"), new DirectorPlacementRule
+            SpawnCard spawnCard = (SpawnCard)Resources.Load("SpawnCards/CharacterSpawnCards/cscBeetleGuardAlly");
+            DirectorPlacementRule rule = new DirectorPlacementRule
             {
                 placementMode = DirectorPlacementRule.PlacementMode.Approximate,
                 minDistance = 3f,
                 maxDistance = 40f,
                 spawnOnTarget = master.GetBody().transform
-            }, RoR2Application.rng);
+            };
+
+            DirectorSpawnRequest request = new DirectorSpawnRequest(spawnCard, rule, RoR2Application.rng);
+            request.teamIndexOverride = TeamIndex.Player;
+            request.ignoreTeamMemberLimit = true;
+
+            GameObject gameObject = DirectorCore.instance.TrySpawnObject(request);
 
             if (gameObject)
             {
