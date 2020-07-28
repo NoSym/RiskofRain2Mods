@@ -1,9 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using BepInEx;
-using RoR2.UI;
-using RoR2;
+﻿using RoR2;
 using RoR2.CharacterAI;
+using RoR2.UI;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Networking;
 
@@ -58,10 +56,10 @@ namespace WildMagic
         // Probably a bad idea
         private CharacterMaster victim;
 
-        // :)
-        private List<ScoreboardStrip> stripList = new List<ScoreboardStrip>();
+        // :) - Made a lot of these readonly, since they're never overwritten
+        private readonly List<ScoreboardStrip> stripList = new List<ScoreboardStrip>();
 
-        private List<CharacterBody> charmedList = new List<CharacterBody>();
+        private readonly List<CharacterBody> charmedList = new List<CharacterBody>();
 
         // proc chance = rollChance * 0.5 + 0.5
         private int rollChance = 0;
@@ -74,7 +72,7 @@ namespace WildMagic
         private int hauntCounter = 0;
 
         // For the horde
-        private int beetleWaveMax = 5;
+        private readonly int beetleWaveMax = 5;
 
         // Jellies
         private List<CharacterMaster> vagrantList = new List<CharacterMaster>();
@@ -151,7 +149,7 @@ namespace WildMagic
 
                 orig(self, report, victim);
             }; // OnHitEnemy
-            
+
             // Why not just do every single thing differently
             On.RoR2.HealthComponent.TakeDamage += (orig, self, damager) =>
             {
@@ -162,7 +160,7 @@ namespace WildMagic
 
                 orig(self, damager);
             }; // TakeDamage
-            
+
             // Spooky
             On.RoR2.GlobalEventManager.OnCharacterDeath += (orig, self, report) =>
             {
@@ -193,9 +191,11 @@ namespace WildMagic
                                     spawnOnTarget = master.GetBody().transform
                                 };
 
-                                DirectorSpawnRequest request = new DirectorSpawnRequest(spawnCard, rule, RoR2Application.rng);
-                                request.teamIndexOverride = TeamIndex.Monster;
-                                request.ignoreTeamMemberLimit = true;
+                                DirectorSpawnRequest request = new DirectorSpawnRequest(spawnCard, rule, RoR2Application.rng)
+                                {
+                                    teamIndexOverride = TeamIndex.Monster,
+                                    ignoreTeamMemberLimit = true
+                                };
 
                                 GameObject gameObject = DirectorCore.instance.TrySpawnObject(request);
                                 if (gameObject)
@@ -216,7 +216,7 @@ namespace WildMagic
 
                 orig(self, report);
             }; // CharacterDeath
-            
+
             // Keep track of scoreboard instance
             On.RoR2.UI.ScoreboardStrip.SetMaster += (orig, self, newMaster) =>
             {
@@ -224,9 +224,9 @@ namespace WildMagic
                     stripList.Add(self);
                 orig(self, newMaster);
             }; // SetMaster
-            
-            // Make player invisible to charmed enemies to drop aggro
-            On.RoR2.CharacterBody.GetVisibilityLevel += (orig, self, body) =>
+
+            // Make player invisible to charmed enemies to drop aggro - This was a simple function name change
+            On.RoR2.CharacterBody.GetVisibilityLevel_CharacterBody += (orig, self, body) =>
             {
                 // If you need to charm a LOT of enemies remove this loop for efficiency, probably
                 for (int i = 0; i < charmedList.Count; i++)
@@ -235,7 +235,7 @@ namespace WildMagic
 
                 return orig(self, body);
             }; // GetVisibilityLevel
-            
+
         } // MagicHandler Constructor
 
         /// <summary>
@@ -245,7 +245,7 @@ namespace WildMagic
         {
             string message = "";
 
-            switch((Effects)UnityEngine.Random.Range(0, (int)Effects.Count))
+            switch ((Effects)Random.Range(0, (int)Effects.Count))
             {
                 case Effects.BeetleSquad:
                     BeetleSquad();
@@ -427,7 +427,7 @@ namespace WildMagic
         /// <param name="chance">Possible values: 'low', 'medium', 'high'</param>
         public void SetChance(string chance)
         {
-            switch(chance)
+            switch (chance)
             {
                 case "low":
                     rollChance = 0; // 0.5%
@@ -505,9 +505,11 @@ namespace WildMagic
                     spawnOnTarget = master.GetBody().transform
                 };
 
-                DirectorSpawnRequest request = new DirectorSpawnRequest(spawnCard, rule, RoR2Application.rng);
-                request.teamIndexOverride = TeamIndex.Monster;
-                request.ignoreTeamMemberLimit = true;
+                DirectorSpawnRequest request = new DirectorSpawnRequest(spawnCard, rule, RoR2Application.rng)
+                {
+                    teamIndexOverride = TeamIndex.Monster,
+                    ignoreTeamMemberLimit = true
+                };
 
                 GameObject gameObject = DirectorCore.instance.TrySpawnObject(request);
                 if (gameObject)
@@ -606,7 +608,7 @@ namespace WildMagic
                 {
                     commandoMaster.SpawnBody(body, master.GetBody().transform.position, Quaternion.identity);
                 } // else
-                
+
                 // Support Builds
                 switch (i)
                 {
@@ -700,15 +702,15 @@ namespace WildMagic
             master.GetBody().AddTimedBuff(BuffIndex.AffixRed, 10);
         } // FireTrail
 
-        // Just activates the artifact
+        // Just activates the artifact - This was moved to an entirely new object, had to switch that
         private void Funballs()
         {
-            if (!Run.instance.enabledArtifacts.HasArtifact(ArtifactIndex.Bomb))
+            if (!RunArtifactManager.instance.IsArtifactEnabled(RoR2Content.Artifacts.bombArtifactDef))
             {
-                Run.instance.enabledArtifacts.AddArtifact(ArtifactIndex.Bomb);
+                RunArtifactManager.instance.SetArtifactEnabledServer(RoR2Content.Artifacts.bombArtifactDef, true);
                 Timer.SetTimer(() =>
                 {
-                    Run.instance.enabledArtifacts.RemoveArtifact(ArtifactIndex.Bomb);
+                    RunArtifactManager.instance.SetArtifactEnabledServer(RoR2Content.Artifacts.bombArtifactDef, true);
                 }, 60);
             } // if
         } // Funballs
@@ -735,9 +737,10 @@ namespace WildMagic
                 bool flag = pickupIndex == PickupIndex.none;
                 if (flag)
                 {
+                    //This chat function stopped taking the GameObject in favor of just the Body
                     Chat.SendBroadcastChat(new Chat.SubjectFormatChatMessage
                     {
-                        subjectCharacterBodyGameObject = master.GetBody().gameObject,
+                        subjectAsCharacterBody = master.GetBody(),
                         baseToken = "SHRINE_CHANCE_FAIL_MESSAGE"
                     });
                 }
@@ -746,12 +749,12 @@ namespace WildMagic
                     PickupDropletController.CreatePickupDroplet(pickupIndex, master.GetBody().transform.position, master.GetBody().transform.forward * 20f);
                     Chat.SendBroadcastChat(new Chat.SubjectFormatChatMessage
                     {
-                        subjectCharacterBodyGameObject = master.GetBody().gameObject,
+                        subjectAsCharacterBody = master.GetBody(),
                         baseToken = "SHRINE_CHANCE_SUCCESS_MESSAGE"
                     });
                 }
 
-                EffectManager.instance.SpawnEffect(Resources.Load<GameObject>("Prefabs/Effects/ShrineUseEffect"), new EffectData
+                EffectManager.SpawnEffect(Resources.Load<GameObject>("Prefabs/Effects/ShrineUseEffect"), new EffectData
                 {
                     origin = master.GetBody().transform.position,
                     rotation = Quaternion.identity,
@@ -814,7 +817,7 @@ namespace WildMagic
         // Instant death
         private void Instakill()
         {
-            if(victim != null)
+            if (victim != null)
                 victim.GetBody().healthComponent.Suicide(master.gameObject);
         } // Instakill
 
@@ -839,9 +842,11 @@ namespace WildMagic
                 spawnOnTarget = master.GetBody().transform
             };
 
-            DirectorSpawnRequest request = new DirectorSpawnRequest(spawnCard, rule, RoR2Application.rng);
-            request.teamIndexOverride = TeamIndex.Monster;
-            request.ignoreTeamMemberLimit = true;
+            DirectorSpawnRequest request = new DirectorSpawnRequest(spawnCard, rule, RoR2Application.rng)
+            {
+                teamIndexOverride = TeamIndex.Monster,
+                ignoreTeamMemberLimit = true
+            };
 
             GameObject gameObject = DirectorCore.instance.TrySpawnObject(request);
             if (gameObject)
@@ -971,9 +976,11 @@ namespace WildMagic
                 spawnOnTarget = master.GetBody().transform
             };
 
-            DirectorSpawnRequest request = new DirectorSpawnRequest(spawnCard, rule, RoR2Application.rng);
-            request.teamIndexOverride = TeamIndex.Player;
-            request.ignoreTeamMemberLimit = true;
+            DirectorSpawnRequest request = new DirectorSpawnRequest(spawnCard, rule, RoR2Application.rng)
+            {
+                teamIndexOverride = TeamIndex.Player,
+                ignoreTeamMemberLimit = true
+            };
 
             GameObject gameObject = DirectorCore.instance.TrySpawnObject(request);
 
@@ -1002,10 +1009,12 @@ namespace WildMagic
         // Yes I'm writing a function for this
         private void TakeOneDamage()
         {
-            DamageInfo damageInfo = new DamageInfo();
-            damageInfo.damage = 1.0f;
-            damageInfo.damageType = DamageType.NonLethal;
-            damageInfo.damageColorIndex = DamageColorIndex.WeakPoint;
+            DamageInfo damageInfo = new DamageInfo
+            {
+                damage = 1.0f,
+                damageType = DamageType.NonLethal,
+                damageColorIndex = DamageColorIndex.WeakPoint
+            };
             master.GetBody().healthComponent.TakeDamage(damageInfo);
         } // TakeOneDamage
 
